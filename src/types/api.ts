@@ -78,6 +78,7 @@ export interface Subscription {
   autoRenew: boolean;
   providerSubscriptionId: string | null;
 }
+export interface SubscriptionPlan { id: string; name: string; monthlyPrice: number; annualPrice: number; currency: string; maxUsers: number; maxWarehouses: number; maxInvoicesPerMonth: number; supportsAfip: boolean; isDefault: boolean; }
 export interface Notification {
   id: string;
   title: string;

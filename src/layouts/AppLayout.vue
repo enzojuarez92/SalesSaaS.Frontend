@@ -52,7 +52,7 @@ const nav = [
   { name: "Compras", path: "/modules/compras", icon: Package },
   { name: "Caja", path: "/caja", icon: Wallet },
   { name: "Analytics", path: "/modules/analytics", icon: BarChart3 },
-  { name: "Suscripción", path: "/modules/suscripcion", icon: CreditCard },
+  { name: "Suscripción", path: "/suscripcion", icon: CreditCard },
 ];
 const filtered = computed(() =>
   nav.filter((n) => n.name.toLowerCase().includes(search.value.toLowerCase())),
@@ -155,7 +155,7 @@ async function logout() {
             tenant.subscription?.planName || "Mi suscripción"
           }}</strong>
           <p>Un lugar para hacer crecer tu negocio.</p>
-          <RouterLink to="/modules/suscripcion">Ver suscripción →</RouterLink>
+          <RouterLink to="/suscripcion">Ver suscripción →</RouterLink>
         </div>
         <button
           class="nav-item collapse-button"
