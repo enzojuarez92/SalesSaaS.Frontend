@@ -18,7 +18,7 @@ const discount = computed(() => Math.round(subtotal.value * Math.min(100, Math.m
 const total = computed(() => subtotal.value - discount.value);
 const net = computed(() => Math.round(total.value / 1.21 * 100) / 100);
 const iva = computed(() => Math.round((total.value - net.value) * 100) / 100);
-const visibleProducts = computed(() => products.value.filter(product => (!selectedCategory.value || product.categoryId === selectedCategory.value) && `${product.sku} ${product.name}`.toLowerCase().includes(productSearch.value.toLowerCase())));
+const visibleProducts = computed(() => products.value.filter(product => product.stock > 0 && (!selectedCategory.value || product.categoryId === selectedCategory.value) && `${product.sku} ${product.name}`.toLowerCase().includes(productSearch.value.toLowerCase())));
 const visibleCustomers = computed(() => customers.value.filter(customer => `${customer.name} ${customer.documentNumber}`.toLowerCase().includes(customerSearch.value.toLowerCase())).slice(0, 8));
 const availableCredit = computed(() => selectedCustomer.value ? Math.max(0, selectedCustomer.value.creditLimit - selectedCustomer.value.currentBalance) : 0);
 const paymentOptions = [{ value: 1, label: "Efectivo", icon: Wallet }, { value: 4, label: "Transferencia", icon: Landmark }, { value: 2, label: "Tarjeta", icon: CreditCard }, { value: 6, label: "Cuenta corriente", icon: Wallet }];
