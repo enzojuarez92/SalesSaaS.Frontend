@@ -46,6 +46,7 @@ export const router = createRouter({
         { path: "caja", name: "cash", component: () => import("../views/CashView.vue") },
         { path: "depositos", name: "warehouses", component: () => import("../views/WarehousesView.vue") },
         { path: "suscripcion", name: "subscription", component: () => import("../views/SubscriptionView.vue") },
+        { path: "configuracion", name: "settings", component: () => import("../views/SettingsView.vue") },
         {
           path: "modules/:module",
           component: () => import("../views/ModuleView.vue"),

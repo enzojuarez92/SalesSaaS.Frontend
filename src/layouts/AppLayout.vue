@@ -53,6 +53,7 @@ const nav = [
   { name: "Caja", path: "/caja", icon: Wallet },
   { name: "Analytics", path: "/modules/analytics", icon: BarChart3 },
   { name: "Suscripción", path: "/suscripcion", icon: CreditCard },
+  { name: "Configuración", path: "/configuracion", icon: Building2 },
 ];
 const filtered = computed(() =>
   nav.filter((n) => n.name.toLowerCase().includes(search.value.toLowerCase())),
