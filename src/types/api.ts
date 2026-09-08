@@ -123,6 +123,7 @@ export interface Category {
 }
 export interface Invoice {
   id: string;
+  orderId: string;
   number: string;
   status: string;
   totalAmount: number;
