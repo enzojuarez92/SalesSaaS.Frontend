@@ -36,6 +36,31 @@ export interface DashboardKpis {
   totalReceivable: number;
   totalPayable: number;
 }
+export interface DashboardCash {
+  id: string;
+  warehouseName: string;
+  expectedCash: number;
+  openedAtUtc: string;
+}
+export interface RecentSale {
+  id: string;
+  customerName: string;
+  totalAmount: number;
+  status: string;
+  occurredAtUtc: string;
+  paymentMethod: number;
+}
+export interface DashboardSummary {
+  dailySales: number;
+  dailyTransactions: number;
+  monthlySales: number;
+  monthlyTransactions: number;
+  totalReceivable: number;
+  criticalStockCount: number;
+  currentCash: DashboardCash | null;
+  recentSales: RecentSale[];
+}
+export interface DashboardSalesPoint { date: string; total: number; transactions: number; }
 export interface Warehouse {
   id: string;
   code: string;
