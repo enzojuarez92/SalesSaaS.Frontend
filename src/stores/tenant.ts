@@ -27,9 +27,7 @@ export const useTenantStore = defineStore("tenant", () => {
       api.get<Subscription | null>("/billing/subscriptions/current", {
         params,
       }),
-      ["Owner", "Admin", "Warehouse"].includes(auth.user?.role || "")
-        ? api.get<Warehouse[]>("/warehouses", { params })
-        : Promise.resolve({ data: [] as Warehouse[] }),
+      api.get<Warehouse[]>("/warehouses", { params }),
     ]);
     if (current !== generation) return;
     const [billing, locations] = results;
