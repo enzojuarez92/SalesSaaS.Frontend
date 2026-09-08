@@ -125,6 +125,7 @@ export interface Customer {
   state: string;
   postalCode: string;
   creditLimit: number;
+  currentBalance: number;
   allowCredit: boolean;
   isActive: boolean;
 }
