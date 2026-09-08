@@ -49,7 +49,7 @@ const nav = [
   },
   { name: "Facturación AFIP", path: "/afip", icon: Receipt },
   { name: "Compras", path: "/modules/compras", icon: Package },
-  { name: "Caja", path: "/modules/caja", icon: Wallet },
+  { name: "Caja", path: "/caja", icon: Wallet },
   { name: "Analytics", path: "/modules/analytics", icon: BarChart3 },
   { name: "Suscripción", path: "/modules/suscripcion", icon: CreditCard },
 ];

@@ -148,6 +148,21 @@ export interface AccountEntry {
   isDebit?: boolean;
 }
 
+export interface CashMovement {
+  id: string;
+  paymentMethod: number;
+  amount: number;
+  isIncome: boolean;
+  description: string;
+  occurredAtUtc: string;
+}
+export interface CashPaymentTotal { paymentMethod: number; income: number; expense: number; net: number; }
+export interface CashSession {
+  id: string; warehouseId: string; warehouseName: string; openingBalance: number; expectedCash: number;
+  closingBalance: number | null; difference: number | null; openedAtUtc: string; closedAtUtc: string | null;
+  status: string; totals: CashPaymentTotal[]; movements: CashMovement[];
+}
+
 export interface AfipAuthorization {
   invoiceId: string;
   isApproved: boolean;

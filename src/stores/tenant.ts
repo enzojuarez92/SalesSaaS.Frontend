@@ -38,6 +38,8 @@ export const useTenantStore = defineStore("tenant", () => {
     if (locations.status === "fulfilled")
       warehouses.value = locations.value.data.filter((w) => w.isActive);
     else error.value = apiError(locations.reason);
+    if (!activeWarehouseId.value && warehouses.value.length === 1)
+      activeWarehouseId.value = warehouses.value[0].id;
   }
   return {
     activeTenantId,

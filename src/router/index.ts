@@ -43,6 +43,7 @@ export const router = createRouter({
           name: "accounts",
           component: () => import("../views/AccountsView.vue"),
         },
+        { path: "caja", name: "cash", component: () => import("../views/CashView.vue") },
         {
           path: "modules/:module",
           component: () => import("../views/ModuleView.vue"),
