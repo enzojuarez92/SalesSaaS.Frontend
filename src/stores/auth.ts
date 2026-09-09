@@ -24,7 +24,7 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem(SESSION_KEY);
   }
   async function authenticate(
-    path: "login" | "register",
+    path: "login" | "register" | "register-tenant",
     payload: LoginRequest | RegisterRequest,
   ) {
     const { data } = await api.post<AuthResponse>(`/auth/${path}`, payload);

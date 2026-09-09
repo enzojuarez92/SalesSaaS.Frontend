@@ -19,6 +19,8 @@ const form = reactive({
   lastName: "",
   email: "",
   password: "",
+  taxCondition: "",
+  businessCategory: "",
 });
 const busy = ref(false),
   error = ref("");
@@ -35,7 +37,7 @@ function validate() {
     "El nombre del negocio",
     150,
   );
-  fieldErrors.taxId = isValidArgentineTaxId(form.taxId)
+  fieldErrors.taxId = !form.taxId || isValidArgentineTaxId(form.taxId)
     ? ""
     : "Ingresá un CUIT argentino válido de 11 dígitos.";
   fieldErrors.email = isValidEmail(form.email)
@@ -53,8 +55,8 @@ async function submit() {
   busy.value = true;
   error.value = "";
   try {
-    await auth.authenticate("register", form);
-    await router.replace("/");
+    await auth.authenticate("register-tenant", form);
+    await router.replace("/dashboard");
   } catch (e) {
     error.value = apiError(e);
   } finally {
@@ -105,9 +107,8 @@ async function submit() {
             :aria-invalid="!!fieldErrors.tenantName"
             placeholder="Tu empresa" /></label
         ><label
-          >CUIT / Identificación fiscal<input
+          >CUIT / Identificación fiscal <small>Opcional por ahora</small><input
             v-model="form.taxId"
-            required
             maxlength="11"
             inputmode="numeric"
             pattern="[0-9]{11}"
@@ -117,6 +118,7 @@ async function submit() {
           /><small v-if="fieldErrors.taxId" class="field-error">{{
             fieldErrors.taxId
           }}</small></label
+        ><div class="form-grid"><label>Condición IVA <small>Opcional</small><select v-model="form.taxCondition"><option value="">Elegir después</option><option>Responsable Inscripto</option><option>Monotributista</option><option>Exento</option></select></label><label>Rubro <small>Opcional</small><select v-model="form.businessCategory"><option value="">Elegir después</option><option>Almacén y autoservicio</option><option>Indumentaria</option><option>Gastronomía</option><option>Servicios</option><option>Otro</option></select></label></div
         ><label
           >Correo electrónico<input
             v-model.trim="form.email"

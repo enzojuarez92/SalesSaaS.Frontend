@@ -20,6 +20,8 @@ export interface RegisterRequest {
   lastName: string;
   email: string;
   password: string;
+  taxCondition?: string;
+  businessCategory?: string;
 }
 export interface PeriodMetric {
   current: number;

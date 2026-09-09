@@ -3,6 +3,7 @@ import { useAuthStore } from "../stores/auth";
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
+    { path: "/", name: "landing", component: () => import("../views/LandingView.vue"), meta: { public: true } },
     {
       path: "/login",
       name: "login",
@@ -19,7 +20,7 @@ export const router = createRouter({
       component: () => import("../layouts/AppLayout.vue"),
       children: [
         {
-          path: "",
+          path: "dashboard",
           name: "dashboard",
           component: () => import("../views/DashboardView.vue"),
         },
@@ -72,5 +73,5 @@ export function safeRedirect(value: unknown) {
     !value.startsWith("/login") &&
     !value.startsWith("/register")
     ? value
-    : "/";
+    : "/dashboard";
 }

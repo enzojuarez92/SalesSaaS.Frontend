@@ -39,7 +39,7 @@ const notifications = ref<Notification[]>([]),
   notificationError = ref(""),
   notificationLoading = ref(false);
 const nav = [
-  { name: "Resumen", path: "/", icon: LayoutDashboard },
+  { name: "Resumen", path: "/dashboard", icon: LayoutDashboard },
   { name: "Ventas / POS", path: "/ventas", icon: ShoppingCart },
   { name: "Productos", path: "/productos", icon: Boxes },
   { name: "Depósitos", path: "/depositos", icon: Building2 },
@@ -122,7 +122,7 @@ async function logout() {
       @click="mobile = false"
     ></button>
     <aside class="sidebar" :class="{ 'mobile-open': mobile }">
-      <RouterLink to="/" class="brand"
+      <RouterLink to="/dashboard" class="brand"
         ><Layers :size="29" /><span class="sidebar-label"
           >SalesSaaS<span class="brand-dot">.</span></span
         ></RouterLink
