@@ -37,6 +37,7 @@ export function apiError(error: unknown): string {
     return "Demasiados intentos. Esperá un minuto y volvé a intentar.";
   if (data?.errors) return Object.values(data.errors).flat().join(" ");
   return (
+    data?.message ||
     data?.detail ||
     "No pudimos conectar con el servidor. Verificá tu conexión e intentá nuevamente."
   );
