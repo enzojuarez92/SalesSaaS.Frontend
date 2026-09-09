@@ -184,10 +184,10 @@ async function logout() {
             <span class="hint">NEGOCIO ACTIVO</span
             ><button
               class="tenant-link"
-              @click="router.push('/login?switch=1')"
-              :title="auth.tenantId"
+              disabled
+              title="Tenés un único negocio disponible en esta sesión."
             >
-              {{ auth.tenantId.slice(0, 8) }}…<ChevronDown :size="14" />
+              {{ tenant.businessName }}<ChevronDown :size="14" />
             </button>
           </div>
         </div>
