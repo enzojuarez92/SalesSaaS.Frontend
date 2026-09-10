@@ -39,6 +39,7 @@ export const router = createRouter({
           name: "products",
           component: () => import("../views/ProductsView.vue"),
         },
+        { path: "categorias", name: "categories", component: () => import("../views/CategoriesView.vue") },
         {
           path: "cuentas-corrientes",
           name: "accounts",

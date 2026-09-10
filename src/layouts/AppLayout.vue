@@ -21,6 +21,7 @@ import {
   Check,
   Boxes,
   ContactRound,
+  Tags,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
@@ -42,6 +43,7 @@ const nav = [
   { name: "Resumen", path: "/dashboard", icon: LayoutDashboard },
   { name: "Ventas / POS", path: "/ventas", icon: ShoppingCart },
   { name: "Productos", path: "/productos", icon: Boxes },
+  { name: "Categorías", path: "/categorias", icon: Tags },
   { name: "Depósitos", path: "/depositos", icon: Building2 },
   {
     name: "Cuentas corrientes",
