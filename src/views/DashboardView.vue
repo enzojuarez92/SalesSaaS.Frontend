@@ -3,8 +3,10 @@ import { computed, ref, watch } from "vue";
 import { AlertTriangle, ArrowRight, Banknote, Box, CreditCard, Package, ReceiptText, RefreshCw, ShoppingBag, TrendingUp, WalletCards } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
+import { useTenantStore } from "../stores/tenant";
 import type { DashboardSalesPoint, DashboardSummary, TopProduct } from "../types/api";
 const auth = useAuthStore();
+const tenant = useTenantStore();
 const summary = ref<DashboardSummary | null>(null), products = ref<TopProduct[]>([]), chart = ref<DashboardSalesPoint[]>([]);
 const loading = ref(false), error = ref("");
 const money = (value: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(value || 0);
@@ -19,8 +21,8 @@ const chartPoints = computed(() => chart.value.map((point, index) => `${chart.va
 const chartArea = computed(() => chartPoints.value ? `0,100 ${chartPoints.value} 100,100` : "");
 const chartTotal = computed(() => chart.value.reduce((total, point) => total + point.total, 0));
 const paymentName = (method: number) => ({ 1: "Efectivo", 2: "Tarjeta", 3: "Tarjeta", 4: "Transferencia", 5: "Mercado Pago", 6: "Cta. corriente" }[method] || "Otro");
-async function load() { if (!auth.tenantId) return; loading.value = true; error.value = ""; try { const params = { tenantId: auth.tenantId }; const [summaryResult, productsResult, chartResult] = await Promise.all([api.get<DashboardSummary>("/dashboard/summary", { params }), api.get<TopProduct[]>("/dashboard/top-products", { params }), api.get<DashboardSalesPoint[]>("/dashboard/sales-chart", { params: { ...params, days: 30 } })]); summary.value = summaryResult.data; products.value = productsResult.data; chart.value = chartResult.data; } catch (cause) { error.value = apiError(cause); } finally { loading.value = false; } }
-watch(() => auth.tenantId, load, { immediate: true });
+async function load() { if (!auth.tenantId) return; loading.value = true; error.value = ""; try { const params = { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId || undefined }; const [summaryResult, productsResult, chartResult] = await Promise.all([api.get<DashboardSummary>("/dashboard/summary", { params }), api.get<TopProduct[]>("/dashboard/top-products", { params }), api.get<DashboardSalesPoint[]>("/dashboard/sales-chart", { params: { ...params, days: 30 } })]); summary.value = summaryResult.data; products.value = productsResult.data; chart.value = chartResult.data; } catch (cause) { error.value = apiError(cause); } finally { loading.value = false; } }
+watch(() => auth.tenantId, load, { immediate: true }); watch(() => tenant.activeWarehouseId, load);
 </script>
 <template>
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Resumen</div><h1>Resumen general<span class="brand-dot">.</span></h1><p>La información clave para decidir rápido y operar mejor.</p></div><button class="secondary" :disabled="loading" @click="load"><RefreshCw :size="16" :class="{ spin: loading }" />Actualizar</button></div>
