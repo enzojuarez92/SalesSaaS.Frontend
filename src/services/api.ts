@@ -7,13 +7,38 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   if (!config.url?.startsWith("/auth/")) {
     const session = readSession();
-    if (session) config.headers.Authorization = `Bearer ${session.accessToken}`;
+    if (session) {
+      config.headers.Authorization = `Bearer ${session.accessToken}`;
+      const warehouseId = sessionStorage.getItem(
+        `salessaas.warehouse.${session.tenantId}`,
+      );
+      if (warehouseId) config.headers["X-Warehouse-Id"] = warehouseId;
+    }
   }
   return config;
 });
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (
+      ["post", "put", "delete"].includes(response.config.method || "") &&
+      !response.config.url?.startsWith("/auth/") &&
+      !response.config.url?.includes("/import") &&
+      !response.data?.errors &&
+      !response.data?.errors?.length
+    )
+      window.dispatchEvent(
+        new CustomEvent("app:toast", {
+          detail: { message: "Operación completada.", error: false },
+        }),
+      );
+    return response;
+  },
   (error) => {
+    window.dispatchEvent(
+      new CustomEvent("app:toast", {
+        detail: { message: apiError(error), error: true },
+      }),
+    );
     if (
       error.response?.status === 401 &&
       !error.config?.url?.startsWith("/auth/")
@@ -25,7 +50,7 @@ api.interceptors.response.use(
 export function apiError(error: unknown): string {
   if (!axios.isAxiosError(error)) return "No se pudo completar la operación.";
   if (error.code === "ERR_NETWORK" || !error.response)
-    return "No pudimos conectar con el backend en http://localhost:5274. Iniciá SalesSaaS.Backend y volvé a intentar.";
+    return "No pudimos conectar con el servidor. Verificá que los servicios estén disponibles y volvé a intentar.";
   const data = error.response?.data;
   if (error.response?.status === 403)
     return data?.detail || "No tenés permisos para acceder a esta información.";
@@ -38,6 +63,7 @@ export function apiError(error: unknown): string {
   if (data?.errors) return Object.values(data.errors).flat().join(" ");
   return (
     data?.message ||
+    data?.error ||
     data?.detail ||
     "No pudimos conectar con el servidor. Verificá tu conexión e intentá nuevamente."
   );

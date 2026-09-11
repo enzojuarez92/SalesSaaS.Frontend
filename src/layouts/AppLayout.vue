@@ -39,7 +39,7 @@ const collapsed = ref(false),
 const notifications = ref<Notification[]>([]),
   notificationError = ref(""),
   notificationLoading = ref(false);
-const nav = [
+const allNav = [
   { name: "Resumen", path: "/dashboard", icon: LayoutDashboard },
   { name: "Ventas / POS", path: "/ventas", icon: ShoppingCart },
   { name: "Productos", path: "/productos", icon: Boxes },
@@ -51,14 +51,32 @@ const nav = [
     icon: ContactRound,
   },
   { name: "Facturación AFIP", path: "/afip", icon: Receipt },
-  { name: "Compras", path: "/modules/compras", icon: Package },
+  { name: "Compras", path: "/compras", icon: Package },
+  { name: "Presupuestos", path: "/presupuestos", icon: Receipt },
   { name: "Caja", path: "/caja", icon: Wallet },
   { name: "Reportes", path: "/reportes", icon: BarChart3 },
   { name: "Suscripción", path: "/suscripcion", icon: CreditCard },
   { name: "Configuración", path: "/configuracion", icon: Building2 },
 ];
+const nav = computed(() =>
+  allNav.filter((n) => {
+    const role = auth.user?.role;
+    if (role === "Owner" || role === "Admin") return true;
+    const common = ["/dashboard", "/productos", "/suscripcion"];
+    return (
+      common.includes(n.path) ||
+      (role === "Seller"
+        ? ["/ventas", "/caja", "/presupuestos", "/cuentas-corrientes"].includes(
+            n.path,
+          )
+        : ["/categorias", "/depositos", "/compras"].includes(n.path))
+    );
+  }),
+);
 const filtered = computed(() =>
-  nav.filter((n) => n.name.toLowerCase().includes(search.value.toLowerCase())),
+  nav.value.filter((n) =>
+    n.name.toLowerCase().includes(search.value.toLowerCase()),
+  ),
 );
 watch(
   () => auth.tenantId,
@@ -196,7 +214,7 @@ async function logout() {
         <label class="warehouse-picker"
           ><span class="sr-only">Sucursal / depósito activo</span
           ><select v-model="tenant.activeWarehouseId">
-            <option value="">Todas las sucursales</option>
+            <option value="" disabled>Seleccionar sucursal</option>
             <option v-for="w in tenant.warehouses" :key="w.id" :value="w.id">
               {{ w.name }}
             </option>
@@ -270,7 +288,13 @@ async function logout() {
           </button>
           <div v-if="profileOpen" class="popover profile-panel">
             <strong>{{ auth.user?.email }}</strong>
-            <p>{{ auth.user?.role }}</p>
+            <p>{{ auth.user?.role }} · {{ tenant.businessName }}</p>
+            <RouterLink
+              to="/perfil"
+              class="text-button"
+              @click="profileOpen = false"
+              >Mi perfil</RouterLink
+            >
             <button class="text-button" @click="logout">
               <LogOut :size="16" />Cerrar sesión
             </button>
@@ -281,7 +305,20 @@ async function logout() {
         <p v-if="tenant.error" class="notice" role="status">
           {{ tenant.error }}
         </p>
-        <RouterView />
+        <RouterView
+          :key="`${auth.tenantId}:${tenant.activeWarehouseId}`"
+          v-if="
+            tenant.activeWarehouseId ||
+            route.name === 'subscription' ||
+            route.name === 'settings' ||
+            route.name === 'warehouses' ||
+            route.name === 'profile'
+          "
+        />
+        <p v-else role="status">
+          {{ tenant.error || "Cargando las sucursales del negocio…" }}
+          <RouterLink to="/depositos">Gestionar sucursales</RouterLink>
+        </p>
       </main>
       <footer class="app-footer">
         SalesSaaS <span>Hecho para acompañar tu crecimiento.</span>

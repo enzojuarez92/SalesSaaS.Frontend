@@ -3,7 +3,12 @@ import { useAuthStore } from "../stores/auth";
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", name: "landing", component: () => import("../views/LandingView.vue"), meta: { public: true } },
+    {
+      path: "/",
+      name: "landing",
+      component: () => import("../views/LandingView.vue"),
+      meta: { public: true },
+    },
     {
       path: "/login",
       name: "login",
@@ -19,6 +24,22 @@ export const router = createRouter({
       path: "/",
       component: () => import("../layouts/AppLayout.vue"),
       children: [
+        {
+          path: "presupuestos",
+          name: "quotes",
+          component: () => import("../views/QuotesView.vue"),
+        },
+        {
+          path: "compras",
+          name: "purchases",
+          component: () => import("../views/PurchasesView.vue"),
+        },
+        { path: "modules/compras", redirect: "/compras" },
+        {
+          path: "perfil",
+          name: "profile",
+          component: () => import("../views/ProfileView.vue"),
+        },
         {
           path: "dashboard",
           name: "dashboard",
@@ -39,17 +60,41 @@ export const router = createRouter({
           name: "products",
           component: () => import("../views/ProductsView.vue"),
         },
-        { path: "categorias", name: "categories", component: () => import("../views/CategoriesView.vue") },
+        {
+          path: "categorias",
+          name: "categories",
+          component: () => import("../views/CategoriesView.vue"),
+        },
         {
           path: "cuentas-corrientes",
           name: "accounts",
           component: () => import("../views/AccountsView.vue"),
         },
-        { path: "caja", name: "cash", component: () => import("../views/CashView.vue") },
-        { path: "depositos", name: "warehouses", component: () => import("../views/WarehousesView.vue") },
-        { path: "suscripcion", name: "subscription", component: () => import("../views/SubscriptionView.vue") },
-        { path: "configuracion", name: "settings", component: () => import("../views/SettingsView.vue") },
-        { path: "reportes", name: "reports", component: () => import("../views/ReportsView.vue") },
+        {
+          path: "caja",
+          name: "cash",
+          component: () => import("../views/CashView.vue"),
+        },
+        {
+          path: "depositos",
+          name: "warehouses",
+          component: () => import("../views/WarehousesView.vue"),
+        },
+        {
+          path: "suscripcion",
+          name: "subscription",
+          component: () => import("../views/SubscriptionView.vue"),
+        },
+        {
+          path: "configuracion",
+          name: "settings",
+          component: () => import("../views/SettingsView.vue"),
+        },
+        {
+          path: "reportes",
+          name: "reports",
+          component: () => import("../views/ReportsView.vue"),
+        },
         {
           path: "modules/:module",
           component: () => import("../views/ModuleView.vue"),
@@ -65,7 +110,7 @@ router.beforeEach((to) => {
     auth.clear();
     return { path: "/login", query: { redirect: to.fullPath } };
   }
-  if (to.meta.public && auth.isAuthenticated && !to.query.switch) return "/";
+  if (to.meta.public && auth.isAuthenticated) return "/dashboard";
 });
 export function safeRedirect(value: unknown) {
   return typeof value === "string" &&

@@ -155,6 +155,7 @@ export interface Customer {
   postalCode: string;
   creditLimit: number;
   currentBalance: number;
+  availableCredit?: number;
   allowCredit: boolean;
   isActive: boolean;
 }

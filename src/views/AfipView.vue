@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { money } from "../services/format";
 import { computed, ref, watch } from "vue";
 import { CheckCircle2, Clock3, Download, ExternalLink, FileText, QrCode, RefreshCw, RotateCcw, XCircle } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
@@ -6,7 +7,7 @@ import { useAuthStore } from "../stores/auth";
 import type { Invoice, PagedResult } from "../types/api";
 const auth = useAuthStore();
 const invoices = ref<Invoice[]>([]), loading = ref(false), error = ref(""), filter = ref(""), customerFilter = ref(""), dateFrom = ref(""), dateTo = ref(""), page = ref(1), result = ref<PagedResult<Invoice> | null>(null), qrInvoice = ref<Invoice | null>(null);
-const money = (value: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(value);
+
 const status = (invoice: Invoice) => invoice.cae ? "approved" : invoice.afipResult === "Rejected" || invoice.afipResult === "Error" ? "rejected" : "pending";
 const statusLabel = (invoice: Invoice) => ({ approved: "Aprobado con CAE", rejected: "Rechazado", pending: "Pendiente" })[status(invoice)];
 const statusIcon = computed(() => ({ approved: CheckCircle2, rejected: XCircle, pending: Clock3 }));

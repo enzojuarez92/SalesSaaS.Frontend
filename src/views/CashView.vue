@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { money } from "../services/format";
 import { computed, onMounted, ref, watch } from "vue";
 import { ArrowDownCircle, ArrowUpCircle, Banknote, CircleAlert, DoorOpen, LoaderCircle, LockKeyhole, Plus, ReceiptText, WalletCards, X } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
@@ -12,7 +13,7 @@ const current = ref<CashSession | null>(null), history = ref<CashSession[]>([]);
 const loading = ref(false), saving = ref(false), error = ref(""), success = ref("");
 const showOpen = ref(false), showMovement = ref(false), showClose = ref(false);
 const openingBalance = ref(0), closingBalance = ref(0), movementAmount = ref(0), movementDescription = ref(""), movementIncome = ref(true), movementPayment = ref(1);
-const money = (value: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(value || 0);
+
 const methodName = (method: number) => ({ 1: "Efectivo", 2: "Tarjeta crédito", 3: "Tarjeta débito", 4: "Transferencia", 5: "Mercado Pago", 6: "Cta. corriente" }[method] || "Otro");
 const physicalDifference = computed(() => closingBalance.value - (current.value?.expectedCash || 0));
 const currentCashTotal = computed(() => current.value?.totals.find(total => total.paymentMethod === 1)?.net || 0);
