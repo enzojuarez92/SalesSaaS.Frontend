@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import { Check, CreditCard, Crown, LoaderCircle, Sparkles, Users, Warehouse } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
@@ -7,6 +8,7 @@ import { useTenantStore } from "../stores/tenant";
 import type { Subscription, SubscriptionPlan } from "../types/api";
 const auth = useAuthStore();
 const tenant = useTenantStore();
+const route = useRoute();
 const current = ref<Subscription | null>(null), plans = ref<SubscriptionPlan[]>([]), annual = ref(false), loading = ref(false), changing = ref(""), error = ref(""), success = ref(""), checkoutUrl = ref("");
 const canManage = computed(() => ["Owner", "Admin"].includes(auth.user?.role || ""));
 const daysLeft = computed(() => current.value ? Math.max(0, Math.ceil((new Date(current.value.expiresAtUtc).getTime() - Date.now()) / 86400000)) : 0);
@@ -18,6 +20,7 @@ watch(() => auth.tenantId, load, { immediate: true });
 </script>
 <template>
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Suscripción</div><h1>Planes y suscripción</h1><p>Elegí el plan que acompaña el crecimiento de tu negocio.</p></div></div>
+  <p v-if="route.query.expired === 'trial'" class="subscription-alert" role="alert">Tu periodo de prueba de 7 días ha finalizado. Seleccioná un plan para continuar utilizando el sistema.</p><p v-else-if="route.query.expired === 'plan'" class="subscription-alert" role="alert">Tu suscripción no está activa. Seleccioná un plan para continuar utilizando el sistema.</p>
   <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="success" class="success" role="status">{{ success }}</p><p v-if="checkoutUrl" class="success">Solicitud creada. <a :href="checkoutUrl" target="_blank" rel="noopener">Continuar al pago</a></p>
   <section v-if="current && (current.status === 2 || daysLeft <= 7)" class="subscription-alert"><CreditCard :size="21" /><div><strong>{{ current.status === 2 ? "Tu suscripción requiere regularización" : "Tu suscripción está próxima a vencer" }}</strong><p>Plan {{ current.planName }} · {{ daysLeft }} día(s) restantes.</p></div></section>
   <section v-if="current" class="current-plan panel"><div><span class="badge">{{ statusLabel(current.status) }}</span><h2>Plan {{ current.planName }}</h2><p>Vence el {{ new Date(current.expiresAtUtc).toLocaleDateString("es-AR") }} · {{ daysLeft }} día(s) restantes.</p></div><Crown :size="40" /><small>Renovación automática: {{ current.autoRenew ? "activa" : "desactivada" }}</small></section>
