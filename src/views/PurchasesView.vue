@@ -7,7 +7,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { money, dateTime } from "../services/format";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { useAuthStore } from "../stores/auth";
@@ -35,7 +35,6 @@ type Purchase = {
 };
 const tab = ref("orders"),
   busy = ref(false),
-  error = ref(""),
   suppliers = ref<Supplier[]>([]),
   products = ref<Product[]>([]),
   orders = ref<Purchase[]>([]),
@@ -68,14 +67,14 @@ const statement = ref<
     occurredAtUtc: string;
   }>
 >([]);
-async function run(fn: () => Promise<unknown>) {
+async function run(fn: () => Promise<unknown>, successMessage?: string) {
   if (busy.value) return;
   busy.value = true;
-  error.value = "";
   try {
     await fn();
+    if (successMessage) notify(successMessage);
   } catch (e) {
-    error.value = apiError(e);
+    notify(apiError(e), true);
   } finally {
     busy.value = false;
   }
@@ -107,7 +106,7 @@ async function create() {
     });
     lines.value = [{ productId: "", quantity: 1, unitCost: 0 }];
     await load();
-  });
+  }, "Orden de compra guardada.");
 }
 async function receive(order: Purchase) {
   if (
@@ -122,7 +121,7 @@ async function receive(order: Purchase) {
       purchaseOrderId: order.id,
     });
     await load();
-  });
+  }, "Mercadería recibida y stock actualizado.");
 }
 async function createSupplier() {
   await run(async () => {
@@ -130,7 +129,7 @@ async function createSupplier() {
     else await api.post("/suppliers", { tenantId: auth.tenantId, ...supplier });
     resetSupplier();
     await load();
-  });
+  }, editingSupplier.value ? "Proveedor actualizado." : "Proveedor creado.");
 }
 function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; supplier.legalName = target?.legalName || ""; supplier.taxId = target?.taxId || ""; supplier.taxCondition = target?.taxCondition || "Responsable Inscripto"; supplier.email = target?.email || ""; supplier.phone = target?.phone || ""; supplier.address = target?.address || ""; supplier.isActive = target?.isActive ?? true; }
 async function createBrand() {
@@ -138,7 +137,7 @@ async function createBrand() {
     await api.post("/brands", { tenantId: auth.tenantId, name: brand.value });
     brand.value = "";
     await load();
-  });
+  }, "Marca creada.");
 }
 async function invoicePurchase() {
   await run(async () => {
@@ -150,7 +149,7 @@ async function invoicePurchase() {
     invoice.orderId = "";
     invoice.number = "";
     await load();
-  });
+  }, "Factura de compra registrada.");
 }
 onMounted(() => run(load));
 </script>
@@ -169,16 +168,15 @@ onMounted(() => run(load));
     <Truck />
   </div>
   <div class="tabs">
-    <button @click="tab = 'orders'">Compras</button
-    ><button @click="tab = 'suppliers'">Proveedores</button
-    ><button @click="tab = 'brands'">Marcas</button>
+    <button type="button" :class="{ active: tab === 'orders' }" @click="tab = 'orders'">Compras</button
+    ><button type="button" :class="{ active: tab === 'suppliers' }" @click="tab = 'suppliers'">Proveedores</button
+    ><button type="button" :class="{ active: tab === 'brands' }" @click="tab = 'brands'">Marcas</button>
   </div>
-  <p v-if="error" class="error" role="alert">{{ error }}</p>
   <p v-if="busy" role="status"><LoaderCircle class="spin" /> Procesando…</p>
   <section v-if="tab === 'orders'" class="panel">
     <h2>Nueva orden de compra</h2>
     <form novalidate @submit.prevent="create">
-      <label
+      <div class="supplier-picker"><label
         >Proveedor<select v-model="supplierId" required>
           <option value="" disabled>Seleccionar proveedor</option>
           <option
@@ -189,7 +187,7 @@ onMounted(() => run(load));
             {{ s.legalName }}
           </option>
         </select></label
-      >
+      ><button type="button" class="secondary" @click="resetSupplier(); tab = 'suppliers'"><Plus :size="16" />Nuevo proveedor</button></div>
       <div v-for="(line, i) in lines" :key="i" class="purchase-line">
         <label
           >Producto<select
@@ -399,6 +397,7 @@ onMounted(() => run(load));
   align-items: end;
   margin: 0.8rem 0;
 }
+.tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{background:#ec4899;color:#fff;border-color:#ec4899}.supplier-picker{display:flex;align-items:end;gap:.75rem}.supplier-picker label{flex:1}
 h2 {
   margin: 1rem 0;
 }
