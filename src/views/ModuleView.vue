@@ -7,7 +7,7 @@ const route = useRoute(),
   tenant = useTenantStore();
 const names: Record<string, string> = {
   ventas: "Ventas",
-  facturacion: "Facturación AFIP",
+  facturacion: "Facturación ARCA",
   compras: "Compras",
   caja: "Caja",
   analytics: "Analytics",

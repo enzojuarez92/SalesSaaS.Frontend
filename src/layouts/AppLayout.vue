@@ -65,7 +65,7 @@ const allNav = [
     path: "/cuentas-corrientes",
     icon: ContactRound,
   },
-  { name: "Facturación AFIP", path: "/afip", icon: Receipt },
+  { name: "Facturación ARCA", path: "/afip", icon: Receipt },
   { name: "Compras", path: "/compras", icon: Package },
   { name: "Presupuestos", path: "/presupuestos", icon: Receipt },
   { name: "Caja", path: "/caja", icon: Wallet },

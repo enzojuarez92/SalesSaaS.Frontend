@@ -514,7 +514,7 @@ async function saveQuote() {
     <div>
       <div class="breadcrumb">Tu negocio / Ventas</div>
       <h1>Punto de venta</h1>
-      <p>Armá el comprobante, cobrá y autorizá en AFIP.</p>
+      <p>Armá el comprobante, cobrá y autorizá en ARCA.</p>
     </div>
     <span class="badge">POS</span>
   </div>
@@ -711,7 +711,7 @@ async function saveQuote() {
         :disabled="saving"
         @click="authorize"
       >
-        <CheckCircle2 :size="17" />Autorizar en AFIP
+        <CheckCircle2 :size="17" />Autorizar en ARCA
       </button>
     </section>
   </div>
@@ -855,7 +855,7 @@ async function saveQuote() {
       </div>
       <h2>
         {{
-          authorization?.isApproved ? "Factura autorizada" : "Resultado de AFIP"
+          authorization?.isApproved ? "Factura autorizada" : "Resultado de ARCA"
         }}
       </h2>
       <p>
