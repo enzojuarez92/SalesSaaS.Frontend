@@ -17,28 +17,15 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+export function notify(message: string, error = false) {
+  window.dispatchEvent(
+    new CustomEvent("app:toast", { detail: { message, error } }),
+  );
+}
+
 api.interceptors.response.use(
-  (response) => {
-    if (
-      ["post", "put", "delete"].includes(response.config.method || "") &&
-      !response.config.url?.startsWith("/auth/") &&
-      !response.config.url?.includes("/import") &&
-      !response.data?.errors &&
-      !response.data?.errors?.length
-    )
-      window.dispatchEvent(
-        new CustomEvent("app:toast", {
-          detail: { message: "Operación completada.", error: false },
-        }),
-      );
-    return response;
-  },
+  (response) => response,
   (error) => {
-    window.dispatchEvent(
-      new CustomEvent("app:toast", {
-        detail: { message: apiError(error), error: true },
-      }),
-    );
     if (
       error.response?.status === 401 &&
       !error.config?.url?.startsWith("/auth/")

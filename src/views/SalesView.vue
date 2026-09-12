@@ -21,7 +21,7 @@ import {
   Mail,
   MessageCircle,
 } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type {
@@ -46,6 +46,7 @@ const productSearch = ref(""),
 const discountPercent = ref(0),
   payment = ref(1),
   documentType = ref(0),
+  emitElectronically = ref(false),
   loading = ref(false),
   saving = ref(false),
   error = ref(""),
@@ -63,6 +64,19 @@ const invoiceId = ref(""),
   showQuickOpen = ref(false),
   openingBalance = ref(0);
 const issuedTotal = ref(0);
+const saleSummary = ref("");
+const isInternalTicket = ref(true);
+
+watch(error, (message) => {
+  if (!message) return;
+  notify(message, true);
+  error.value = "";
+});
+watch(success, (message) => {
+  if (!message) return;
+  notify(message);
+  success.value = "";
+});
 
 const subtotal = computed(() =>
   cart.value.reduce((total, item) => total + item.price * item.quantity, 0),
@@ -392,15 +406,16 @@ async function createSale() {
       );
     issuedOrderId.value = orderId;
     issuedTotal.value = saleTotal;
-    success.value = `Venta registrada por ${money(saleTotal)} con ${paymentOptions.find((option) => option.value === payment.value)?.label.toLowerCase()}.`;
+    saleSummary.value = `Venta registrada por ${money(saleTotal)} con ${paymentOptions.find((option) => option.value === payment.value)?.label.toLowerCase()}.`;
+    success.value = saleSummary.value;
     cart.value = [];
     showPayment.value = false;
-    showSuccess.value = true;
     try {
       const { data: invoice } = await api.post<{
         invoiceId: string;
         number: string;
         status: string;
+        voucherType: number | null;
         cae: string | null;
         caeExpirationDate: string | null;
         qrUrl: string | null;
@@ -408,10 +423,11 @@ async function createSale() {
       }>("/invoices/issue", {
         tenantId: auth.tenantId,
         orderId,
-        documentType: documentType.value,
+        documentType: emitElectronically.value ? documentType.value : 7,
       });
       invoiceId.value = invoice.invoiceId;
       invoiceNumber.value = invoice.number;
+      isInternalTicket.value = invoice.voucherType === null;
       authorization.value = {
         invoiceId: invoice.invoiceId,
         isApproved: invoice.status === "Issued" && Boolean(invoice.cae),
@@ -421,13 +437,12 @@ async function createSale() {
         errors: invoice.errors,
       };
       if (invoice.errors)
-        error.value = `Venta guardada. Comprobante pendiente: ${invoice.errors}`;
+        error.value = `La venta fue registrada, pero ARCA no pudo autorizar el comprobante. ${invoice.errors}`;
     } catch (cause) {
-      error.value = `La venta ${orderId} ya está guardada. Falló la emisión del comprobante: ${apiError(cause)}. No vuelvas a cobrar esta venta.`;
+      error.value = `La venta ${orderId} ya está guardada. No se pudo completar la emisión electrónica: ${apiError(cause)}. No vuelvas a cobrar esta venta.`;
     }
-    const receiptError = error.value;
+    showSuccess.value = true;
     await loadCatalogs();
-    error.value = receiptError || error.value;
   } catch (cause) {
     error.value = apiError(cause);
     await checkCash();
@@ -514,12 +529,10 @@ async function saveQuote() {
     <div>
       <div class="breadcrumb">Tu negocio / Ventas</div>
       <h1>Punto de venta</h1>
-      <p>Armá el comprobante, cobrá y autorizá en ARCA.</p>
+      <p>Armá el comprobante y cobrá. La emisión en ARCA es opcional.</p>
     </div>
     <span class="badge">POS</span>
   </div>
-  <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <p v-if="success" class="success" role="status">{{ success }}</p>
   <section
     v-if="!checkingCash && !cashOpen"
     class="cash-closed-alert"
@@ -774,13 +787,16 @@ async function saveQuote() {
           ><CheckCircle2 v-if="payment === option.value" :size="17" />
         </button>
       </div>
-      <label
+      <label class="fiscal-toggle">
+        <input v-model="emitElectronically" type="checkbox" />
+        <span><strong>Emitir factura electrónica en ARCA</strong><small>Si no la activás, se genera un ticket interno / no fiscal.</small></span>
+      </label>
+      <label v-if="emitElectronically"
         >Tipo de comprobante<select v-model.number="documentType">
           <option :value="0">Automático según condición fiscal</option>
           <option :value="1">Factura A</option>
           <option :value="2">Factura B</option>
           <option :value="3">Factura C</option>
-          <option :value="7">Ticket no fiscal</option>
         </select></label
       >
       <div class="checkout-total">
@@ -805,8 +821,7 @@ async function saveQuote() {
       </button>
       <div class="modal-icon approved"><CheckCircle2 /></div>
       <h2>Venta exitosa</h2>
-      <p>{{ success }}</p>
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p>{{ saleSummary }}</p>
       <dl class="authorization-data">
         <div>
           <dt>Comprobante</dt>
@@ -815,6 +830,10 @@ async function saveQuote() {
         <div v-if="authorization?.cae">
           <dt>CAE</dt>
           <dd>{{ authorization.cae }}</dd>
+        </div>
+        <div v-else>
+          <dt>Tipo</dt>
+          <dd>{{ isInternalTicket ? "Ticket interno / no fiscal" : "Comprobante electrónico pendiente" }}</dd>
         </div>
       </dl>
       <div class="receipt-actions">
@@ -904,6 +923,25 @@ async function saveQuote() {
 .cash-closed-alert .primary {
   flex: none;
 }
+.fiscal-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+.fiscal-toggle input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.1rem;
+  accent-color: #db2777;
+}
+.fiscal-toggle span { display: grid; gap: 0.15rem; }
+.fiscal-toggle strong { font-size: 0.9rem; }
+.fiscal-toggle small { color: #64748b; font-size: 0.78rem; }
 .receipt-actions {
   display: grid;
   grid-template-columns: 52px repeat(2, minmax(0, 1fr));

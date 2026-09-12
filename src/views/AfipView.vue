@@ -20,9 +20,9 @@ const page = ref(1);
 const result = ref<PagedResult<Invoice> | null>(null);
 const qrInvoice = ref<Invoice | null>(null);
 
-const status = (invoice: Invoice) => invoice.cae ? "approved" : invoice.afipResult === "Rejected" || invoice.afipResult === "Error" ? "rejected" : "pending";
-const statusLabel = (invoice: Invoice) => ({ approved: "Aprobado con CAE", rejected: "Rechazado por ARCA", pending: "Pendiente de ARCA" })[status(invoice)];
-const statusIcon = computed(() => ({ approved: CheckCircle2, rejected: XCircle, pending: Clock3 }));
+const status = (invoice: Invoice) => invoice.cae ? "approved" : invoice.afipResult === "Internal" ? "internal" : invoice.afipResult === "Rejected" || invoice.afipResult === "Error" ? "rejected" : "pending";
+const statusLabel = (invoice: Invoice) => ({ approved: "Aprobado con CAE", rejected: "Rechazado por ARCA", pending: "Pendiente de ARCA", internal: "Ticket interno / no fiscal" })[status(invoice)];
+const statusIcon = computed(() => ({ approved: CheckCircle2, rejected: XCircle, pending: Clock3, internal: FileText }));
 const canRetry = (invoice: Invoice) => !invoice.cae && Boolean(invoice.afipVoucherType) && invoice.status !== "Cancelled" && invoice.afipResult !== "Internal";
 
 function notifySuccess(message: string) {
@@ -48,9 +48,10 @@ async function retryEmission(invoice: Invoice) {
   retryingId.value = invoice.id;
   error.value = "";
   try {
-    const { data } = await api.post<{ cae: string | null; errors: string | null }>("/invoices/issue", { tenantId: auth.tenantId, orderId: invoice.orderId, documentType: 0 });
+    const { data } = await api.post<{ cae: string | null; errors: string | null; voucherType: number | null }>("/invoices/issue", { tenantId: auth.tenantId, orderId: invoice.orderId, documentType: 0 });
     await load();
     if (data.cae) notifySuccess(`ARCA autorizó el comprobante ${invoice.number} y asignó su CAE.`);
+    else if (data.voucherType === null && !data.errors) notifySuccess(`${invoice.number} quedó como ticket interno / no fiscal porque ARCA no está habilitada en este entorno.`);
     else error.value = `ARCA no pudo autorizar ${invoice.number}. ${data.errors || "Revisá la configuración fiscal y reintentá."}`;
   } catch (cause) {
     error.value = `No se pudo emitir en ARCA. ${apiError(cause)}`;
@@ -58,8 +59,8 @@ async function retryEmission(invoice: Invoice) {
     retryingId.value = "";
   }
 }
-function printInvoice(invoice: Invoice) { const popup = window.open("", "_blank", "noopener,noreferrer"); if (!popup) return; popup.document.write(`<title>Comprobante ${invoice.number}</title><main style="font-family:system-ui;padding:32px;color:#0f172a"><h1>Comprobante ${invoice.number}</h1><p>Cliente: ${invoice.customerName}</p><p>Emitido: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}</p><h2>Total: ${money(invoice.totalAmount)}</h2><p>CAE: ${invoice.cae ?? "Pendiente de autorización por ARCA"}</p></main>`); popup.document.close(); popup.print(); }
-function download(invoice: Invoice) { const body = `Comprobante ${invoice.number}\nCliente: ${invoice.customerName}\nFecha: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}\nTotal: ${money(invoice.totalAmount)}\nCAE: ${invoice.cae ?? "Pendiente de ARCA"}`; const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = `${invoice.number}.txt`; link.click(); URL.revokeObjectURL(url); }
+function printInvoice(invoice: Invoice) { const fiscalState = invoice.cae ? `CAE: ${invoice.cae}` : invoice.afipResult === "Internal" ? "Ticket interno / no fiscal" : "Pendiente de autorización por ARCA"; const popup = window.open("", "_blank", "noopener,noreferrer"); if (!popup) return; popup.document.write(`<title>Comprobante ${invoice.number}</title><main style="font-family:system-ui;padding:32px;color:#0f172a"><h1>Comprobante ${invoice.number}</h1><p>Cliente: ${invoice.customerName}</p><p>Emitido: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}</p><h2>Total: ${money(invoice.totalAmount)}</h2><p>${fiscalState}</p></main>`); popup.document.close(); popup.print(); }
+function download(invoice: Invoice) { const fiscalState = invoice.cae ? `CAE: ${invoice.cae}` : invoice.afipResult === "Internal" ? "Ticket interno / no fiscal" : "Pendiente de ARCA"; const body = `Comprobante ${invoice.number}\nCliente: ${invoice.customerName}\nFecha: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}\nTotal: ${money(invoice.totalAmount)}\n${fiscalState}`; const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = `${invoice.number}.txt`; link.click(); URL.revokeObjectURL(url); }
 async function creditNote(invoice: Invoice) { if (!window.confirm(`¿Emitir una nota de crédito para ${invoice.number}?`)) return; const type = invoice.afipVoucherType === 1 ? 4 : invoice.afipVoucherType === 11 ? 6 : 5; try { await api.post("/invoices/issue", { tenantId: auth.tenantId, orderId: invoice.orderId, documentType: type, associatedInvoiceId: invoice.id }); await load(); } catch (cause) { error.value = apiError(cause); } }
 watch([() => auth.tenantId, filter, customerFilter, dateFrom, dateTo], () => { page.value = 1; void load(); }, { immediate: true });
 </script>

@@ -14,7 +14,7 @@ function receive(event: Event) {
   const timer = setTimeout(() => {
     messages.value = messages.value.filter((m) => m.id !== id);
     timers.delete(timer);
-  }, 7000);
+  }, 4000);
   timers.add(timer);
 }
 onMounted(() => window.addEventListener("app:toast", receive));
