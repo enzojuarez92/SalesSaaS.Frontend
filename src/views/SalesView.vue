@@ -137,7 +137,35 @@ async function loadCatalogs() {
       null;
   } else error.value ||= apiError(c.reason);
   if (cat.status === "fulfilled") categories.value = cat.value.data;
+  loadPendingQuote();
   loading.value = false;
+}
+function loadPendingQuote() {
+  const stored = sessionStorage.getItem("salessaas.quote-to-load");
+  if (!stored || !products.value.length || !customers.value.length) return;
+  try {
+    const quote = JSON.parse(stored) as {
+      customerId: string;
+      items: Array<{ productId: string; quantity: number }>;
+    };
+    const customer = customers.value.find((item) => item.id === quote.customerId);
+    const lines = quote.items.map((item) => {
+      const product = products.value.find((candidate) => candidate.id === item.productId);
+      if (!product || product.stock < item.quantity)
+        throw new Error("Uno o más productos del presupuesto no tienen stock suficiente en esta sucursal.");
+      return { ...product, quantity: item.quantity };
+    });
+    if (!customer) throw new Error("El cliente del presupuesto no está disponible.");
+    cart.value = lines;
+    selectedCustomer.value = customer;
+    customerSearch.value = "";
+    discountPercent.value = 0;
+    success.value = "Presupuesto cargado en el POS. Revisá el detalle y continuá con el cobro.";
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "No pudimos cargar el presupuesto seleccionado.";
+  } finally {
+    sessionStorage.removeItem("salessaas.quote-to-load");
+  }
 }
 async function checkCash() {
   if (!auth.tenantId || !tenant.activeWarehouseId) {
