@@ -5,12 +5,15 @@ import { Download, FileText, Package, ShieldCheck } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
+type ReportSale = { id?: string; date: string; customer: string; total: number; paymentMethod: string; status: string };
+type AuditRow = { id?: string; entityName: string; action: string; timestampUtc: string };
+type InventoryValuation = { cost?: number; retail?: number };
 const auth = useAuthStore(),
   tenant = useTenantStore(),
   tab = ref("sales"),
-  rows = ref<any[]>([]),
-  audit = ref<any[]>([]),
-  inventory = ref<any>(null),
+  rows = ref<ReportSale[]>([]),
+  audit = ref<AuditRow[]>([]),
+  inventory = ref<InventoryValuation | null>(null),
   error = ref(""),
   from = ref(""),
   to = ref(""),
@@ -100,7 +103,7 @@ watch(() => tenant.activeWarehouseId, load);
           </tr>
         </thead>
         <tbody>
-          <tr v-for="r in rows">
+          <tr v-for="r in rows" :key="r.id || `${r.date}-${r.customer}`">
             <td>{{ new Date(r.date).toLocaleDateString("es-AR") }}</td>
             <td>{{ r.customer }}</td>
             <td>{{ money(r.total) }}</td>
@@ -132,7 +135,7 @@ watch(() => tenant.activeWarehouseId, load);
       </article>
     </div>
     <div v-if="tab === 'audit'" class="statement-list">
-      <article v-for="a in audit">
+      <article v-for="a in audit" :key="a.id || `${a.timestampUtc}-${a.entityName}-${a.action}`">
         <ShieldCheck />
         <div>
           <strong>{{ a.entityName }} · {{ a.action }}</strong

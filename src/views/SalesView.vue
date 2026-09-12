@@ -282,16 +282,17 @@ async function printReceipt() {
     error.value = apiError(cause);
   }
 }
-function createdId(response: { data?: { id?: string }; headers?: any }) {
-  const location =
-    response.headers?.get?.("location") ?? response.headers?.location;
+function createdId(response: { data?: { id?: string }; headers?: unknown }) {
+  const headers = response.headers as
+    | { get?: (name: string, ...args: unknown[]) => unknown; location?: unknown }
+    | undefined;
+  const location = headers?.get?.("location") ?? headers?.location;
   return (
     response.data?.id ||
     (typeof location === "string" ? location.split("/").pop() : "") ||
     ""
   );
-}
-async function openPayment() {
+}async function openPayment() {
   if (!cart.value.length || !tenant.activeWarehouseId) {
     error.value = "Elegí un depósito y al menos un producto para continuar.";
     return;
