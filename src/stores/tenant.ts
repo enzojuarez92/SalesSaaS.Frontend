@@ -36,9 +36,14 @@ export const useTenantStore = defineStore("tenant", () => {
     const savedWarehouse = sessionStorage.getItem(
       `salessaas.warehouse.${auth.tenantId}`,
     );
-    reset();
-    const current = generation;
-    if (!activeTenantId.value) return;
+    const current = ++generation;
+    if (!activeTenantId.value) {
+      reset();
+      return;
+    }
+    // Keep the current context while refreshing. Clearing it here remounts the
+    // routed view and can recursively trigger another tenant load.
+    error.value = "";
     const params = { tenantId: activeTenantId.value };
     const results = await Promise.allSettled([
       api.get<Subscription | null>("/billing/subscriptions/current", {

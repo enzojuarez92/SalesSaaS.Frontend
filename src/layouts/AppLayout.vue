@@ -438,9 +438,6 @@ async function saveProfile() {
         </section>
       </div>
       <main class="page-content">
-        <p v-if="tenant.error" class="notice" role="status">
-          {{ tenant.error }}
-        </p>
         <RouterView
           :key="`${auth.tenantId}:${tenant.activeWarehouseId}`"
           v-if="
