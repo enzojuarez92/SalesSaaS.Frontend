@@ -1616,3 +1616,64 @@ table small,
     display: none;
   }
 }
+
+/* Tailwind v4 dark variant and application theme. */
+@custom-variant dark (&:where(.dark, .dark *));
+.dark {
+  color-scheme: dark;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+.dark body,
+.dark .main-shell,
+.dark .page-content { background: #0f172a; color: #e2e8f0; }
+.dark .sidebar,
+.dark .topbar,
+.dark .panel,
+.dark .popover,
+.dark .modal,
+.dark .auth-card,
+.dark .product-choice,
+.dark .account-summary article,
+.dark .customer-results,
+.dark .customer-results button,
+.dark .payment-options label,
+.dark .payment-box,
+.dark .authorization-data div { background: #172033; border-color: #334155; color: #e2e8f0; }
+.dark h1,
+.dark h2,
+.dark h3,
+.dark .brand,
+.dark .tenant-link,
+.dark .totals .total,
+.dark .topbar select { color: #f8fafc; }
+.dark p,
+.dark .hint,
+.dark .nav-item,
+.dark .workspace small,
+.dark .app-footer { color: #94a3b8; }
+.dark input,
+.dark select,
+.dark textarea,
+.dark .quick-search input { background: #0f172a; border-color: #475569; color: #f8fafc; }
+.dark .icon-button:hover,
+.dark .nav-item:hover,
+.dark .entity-list button:hover,
+.dark .entity-list button.selected { background: #243047; }
+.dark .workspace,
+.dark .responsive-table td,
+.dark .cart-lines,
+.dark .cart-line,
+.dark .profile-menu { border-color: #334155; }
+.dark .profile-panel,
+.dark .notification-panel { box-shadow: 0 18px 36px #02061799; }
+.theme-toggle { color: #e11d48; }
+.dark .theme-toggle { color: #fbbf24; }
+.profile-menu { display: grid; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e2e8f0; }
+.profile-menu .text-button { width: 100%; padding: 8px 6px; border-radius: 7px; text-align: left; }
+.profile-menu .text-button:hover { background: #fdf2f8; }
+.profile-menu .logout-button { color: #e11d48; }
+.dark .profile-menu .text-button:hover { background: #243047; }
+.profile-modal { width: min(100%, 540px); }
+.profile-modal form { margin-top: 18px; }
+.profile-modal .error { margin-top: 16px; }

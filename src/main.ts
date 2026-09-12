@@ -6,6 +6,11 @@ import { useAuthStore } from "./stores/auth";
 import { useTenantStore } from "./stores/tenant";
 import { SESSION_KEY } from "./services/session";
 import "./style.css";
+const savedTheme = localStorage.getItem("salessaas.theme");
+const useDarkTheme =
+  savedTheme === "dark" ||
+  (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
+document.documentElement.classList.toggle("dark", useDarkTheme);
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);

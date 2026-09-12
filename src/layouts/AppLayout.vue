@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Layers,
@@ -22,6 +22,9 @@ import {
   Boxes,
   ContactRound,
   Tags,
+  Moon,
+  Sun,
+  LoaderCircle,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
@@ -35,7 +38,19 @@ const collapsed = ref(false),
   mobile = ref(false),
   search = ref(""),
   notificationsOpen = ref(false),
-  profileOpen = ref(false);
+  profileOpen = ref(false),
+  profileModalOpen = ref(false),
+  profileLoading = ref(false),
+  profileSaving = ref(false),
+  darkMode = ref(document.documentElement.classList.contains("dark"));
+const profileForm = reactive({
+  firstName: "",
+  lastName: "",
+  email: "",
+  currentPassword: "",
+  newPassword: "",
+});
+const profileError = ref("");
 const notifications = ref<Notification[]>([]),
   notificationError = ref(""),
   notificationLoading = ref(false);
@@ -122,6 +137,43 @@ async function logout() {
   tenant.reset();
   await router.replace("/login");
   await pending;
+}
+function toggleTheme() {
+  darkMode.value = !darkMode.value;
+  document.documentElement.classList.toggle("dark", darkMode.value);
+  localStorage.setItem("salessaas.theme", darkMode.value ? "dark" : "light");
+}
+async function openProfile() {
+  profileOpen.value = false;
+  profileModalOpen.value = true;
+  profileError.value = "";
+  profileLoading.value = true;
+  profileForm.currentPassword = "";
+  profileForm.newPassword = "";
+  try {
+    Object.assign(profileForm, (await api.get("/profile")).data);
+  } catch (e) {
+    profileError.value = apiError(e);
+  } finally {
+    profileLoading.value = false;
+  }
+}
+async function saveProfile() {
+  if (profileSaving.value) return;
+  profileSaving.value = true;
+  profileError.value = "";
+  try {
+    await api.put("/profile", {
+      ...profileForm,
+      newPassword: profileForm.newPassword || null,
+    });
+    profileModalOpen.value = false;
+    await logout();
+  } catch (e) {
+    profileError.value = apiError(e);
+  } finally {
+    profileSaving.value = false;
+  }
 }
 </script>
 <template>
@@ -277,6 +329,15 @@ async function logout() {
             </article>
           </section>
         </div>
+        <button
+          class="icon-button theme-toggle"
+          :aria-label="darkMode ? 'Activar modo claro' : 'Activar modo oscuro'"
+          :title="darkMode ? 'Activar modo claro' : 'Activar modo oscuro'"
+          @click="toggleTheme"
+        >
+          <Sun v-if="darkMode" :size="19" />
+          <Moon v-else :size="19" />
+        </button>
         <div class="popover-anchor">
           <button
             class="avatar"
@@ -289,18 +350,93 @@ async function logout() {
           <div v-if="profileOpen" class="popover profile-panel">
             <strong>{{ auth.user?.email }}</strong>
             <p>{{ auth.user?.role }} · {{ tenant.businessName }}</p>
-            <RouterLink
-              to="/perfil"
-              class="text-button"
-              @click="profileOpen = false"
-              >Mi perfil</RouterLink
-            >
-            <button class="text-button" @click="logout">
-              <LogOut :size="16" />Cerrar sesión
-            </button>
+            <div class="profile-menu">
+              <button class="text-button" @click="openProfile">
+                Mi perfil
+              </button>
+              <button class="text-button logout-button" @click="logout">
+                <LogOut :size="16" /> <span>Cerrar sesión</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
+      <div
+        v-if="profileModalOpen"
+        class="modal-backdrop"
+        @click.self="profileModalOpen = false"
+      >
+        <section
+          class="modal profile-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-modal-title"
+        >
+          <button
+            class="icon-button modal-close"
+            aria-label="Cerrar perfil"
+            @click="profileModalOpen = false"
+          >
+            <X :size="20" />
+          </button>
+          <h2 id="profile-modal-title">Mi perfil</h2>
+          <p>
+            Actualizá tus datos. Por seguridad, te pediremos volver a iniciar
+            sesión.
+          </p>
+          <p v-if="profileError" class="error" role="alert">
+            {{ profileError }}
+          </p>
+          <p v-else-if="profileLoading" role="status">Cargando perfil…</p>
+          <form v-else @submit.prevent="saveProfile">
+            <div class="form-grid">
+              <label
+                >Nombre<input
+                  v-model.trim="profileForm.firstName"
+                  required
+                  maxlength="100"
+              /></label>
+              <label
+                >Apellido<input
+                  v-model.trim="profileForm.lastName"
+                  required
+                  maxlength="100"
+              /></label>
+            </div>
+            <label
+              >Email<input
+                v-model.trim="profileForm.email"
+                type="email"
+                required
+                maxlength="254"
+            /></label>
+            <label
+              >Contraseña actual<input
+                v-model="profileForm.currentPassword"
+                type="password"
+                required
+                autocomplete="current-password"
+            /></label>
+            <label
+              >Nueva contraseña (opcional)<input
+                v-model="profileForm.newPassword"
+                type="password"
+                minlength="12"
+                maxlength="128"
+                pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).+"
+                autocomplete="new-password"
+              /><small
+                >12 caracteres, mayúscula, minúscula y número.</small
+              ></label
+            >
+            <button class="primary full" :disabled="profileSaving">
+              <LoaderCircle v-if="profileSaving" class="spin" :size="18" />{{
+                profileSaving ? "Guardando…" : "Guardar cambios"
+              }}
+            </button>
+          </form>
+        </section>
+      </div>
       <main class="page-content">
         <p v-if="tenant.error" class="notice" role="status">
           {{ tenant.error }}
