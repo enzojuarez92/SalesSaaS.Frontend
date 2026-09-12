@@ -42,6 +42,7 @@ const showForm = ref(false),
   paymentAmount = ref(0),
   paymentDescription = ref("");
 const fieldErrors = reactive<Record<string, string>>({});
+let successTimer: ReturnType<typeof setTimeout> | undefined;
 const form = reactive({
   id: "",
   name: "",
@@ -109,6 +110,13 @@ function clearFieldErrors() {
 function clearFieldError(field: string) {
   if (fieldErrors[field]) delete fieldErrors[field];
 }
+function showSuccess(message: string) {
+  success.value = message;
+  window.clearTimeout(successTimer);
+  successTimer = window.setTimeout(() => {
+    success.value = "";
+  }, 5000);
+}
 function validateForm() {
   clearFieldErrors();
   fieldErrors.name = requiredText(form.name, "El nombre o razón social", 150);
@@ -170,7 +178,7 @@ async function save() {
     if (form.id) await api.put(`/customers/${form.id}`, payload);
     else await api.post("/customers", payload);
     showForm.value = false;
-    success.value = form.id ? "Cliente actualizado." : "Cliente creado.";
+    showSuccess(form.id ? "Cliente actualizado." : "Cliente creado.");
     await load();
   } catch (cause) {
     error.value = apiError(cause);
@@ -235,7 +243,7 @@ async function recordPayment() {
       amount: paymentAmount.value,
       description: paymentDescription.value,
     });
-    success.value = "Pago registrado en la cuenta corriente.";
+    showSuccess("Pago registrado en la cuenta corriente.");
     await openStatement(selected.value);
     await load();
   } catch (cause) {
@@ -295,8 +303,8 @@ watch(
       <Plus :size="17" />Nuevo cliente
     </button>
   </div>
-  <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <p v-if="success" class="success" role="status">{{ success }}</p>
+  <p v-if="error && !showForm && !showStatement" class="error" role="alert">{{ error }}</p>
+  <p v-if="success && !showForm && !showStatement" class="success" role="status">{{ success }}</p>
   <div class="account-summary">
     <article>
       <span class="finance-icon orange"><CircleDollarSign /></span>
@@ -371,7 +379,9 @@ watch(
             <td data-label="Acciones">
               <div class="invoice-actions">
                 <button
+                  v-if="customer.allowCredit"
                   title="Ver estado de cuenta"
+                  :aria-label="`Ver estado de cuenta de ${customer.name}`"
                   @click="openStatement(customer)"
                 >
                   <WalletCards :size="16" /></button
@@ -413,6 +423,8 @@ watch(
         <X />
       </button>
       <h2>{{ form.id ? "Editar cliente" : "Nuevo cliente" }}</h2>
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="success" class="success" role="status">{{ success }}</p>
       <form novalidate @submit.prevent="save">
         <div class="form-grid">
           <label class="wide"
@@ -501,16 +513,17 @@ watch(
         <X />
       </button>
       <h2>Cuenta de {{ selected.name }}</h2>
+      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="success" class="success" role="status">{{ success }}</p>
       <div class="statement-summary">
-        <span
-          >Saldo pendiente<strong>{{
-            money(selected.currentBalance)
-          }}</strong></span
-        ><span
-          >Crédito disponible<strong>{{
-            money(availableCredit(selected))
-          }}</strong></span
-        >
+        <article class="balance-card">
+          <span>Saldo pendiente</span>
+          <strong>{{ money(selected.currentBalance) }}</strong>
+        </article>
+        <article class="credit-card">
+          <span>Crédito disponible</span>
+          <strong>{{ money(availableCredit(selected)) }}</strong>
+        </article>
       </div>
       <div v-if="statementLoading" class="empty-small">
         <LoaderCircle class="spin" /> Cargando movimientos…
@@ -581,6 +594,44 @@ watch(
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 400;
+}
+.statement-modal {
+  width: min(100%, 38rem);
+}
+.statement-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.1rem 0 1.35rem;
+}
+.statement-summary article {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+}
+.statement-summary span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.statement-summary strong {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+.balance-card {
+  background: #fff1f2;
+  color: #be123c;
+}
+.credit-card {
+  background: #ecfdf5;
+  color: #047857;
+}
+@media (max-width: 420px) {
+  .statement-summary {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 640px) {
   .credit-toggle {

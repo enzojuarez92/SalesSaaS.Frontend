@@ -17,8 +17,8 @@ function format(value: number) {
   return props.currency ? `$ ${formatted}` : formatted;
 }
 function formatWhileEditing(value: number, source: string) {
-  const hasDecimal = /[,\.]/.test(source);
-  const decimalMatch = source.replace(/[^\d,.]/g, "").match(/[,\.]([^,.]*)$/);
+  const hasDecimal = /[,.]/.test(source);
+  const decimalMatch = source.replace(/[^\d,.]/g, "").match(/[,.]([^,.]*)$/);
   const decimals = decimalMatch?.[1] ?? "";
   const integer = Math.trunc(value);
   const grouped = new Intl.NumberFormat("es-AR", {
