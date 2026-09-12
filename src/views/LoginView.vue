@@ -15,15 +15,17 @@ const email = ref(""),
   error = ref(""),
   busy = ref(false),
   visible = ref(false);
+const fieldErrors = ref<{ email?: string; password?: string }>({});
 async function submit() {
   if (!isValidEmail(email.value)) {
-    error.value = "Ingresá un correo electrónico válido.";
+    fieldErrors.value = { email: "Ingresá un correo electrónico válido." };
     return;
   }
   if (!password.value) {
-    error.value = "La contraseña es obligatoria.";
+    fieldErrors.value = { password: "La contraseña es obligatoria." };
     return;
   }
+  fieldErrors.value = {};
   busy.value = true;
   error.value = "";
   try {
@@ -61,7 +63,7 @@ async function submit() {
       <p v-if="route.query.expired" class="notice" role="status">
         Tu sesión venció. Volvé a ingresar.
       </p>
-      <form @submit.prevent="submit">
+      <form novalidate @submit.prevent="submit">
         <label
           >Correo electrónico<input
             v-model="email"
@@ -69,8 +71,10 @@ async function submit() {
             autocomplete="username"
             required
             maxlength="256"
+            :aria-invalid="!!fieldErrors.email"
+            @input="fieldErrors.email = undefined"
             placeholder="vos@tuempresa.com"
-        /></label>
+        /><small v-if="fieldErrors.email" class="field-error" role="alert">{{ fieldErrors.email }}</small></label>
         <label
           >Contraseña<span class="password-field"
             ><input
@@ -78,6 +82,8 @@ async function submit() {
               :type="visible ? 'text' : 'password'"
               autocomplete="current-password"
               required
+              :aria-invalid="!!fieldErrors.password"
+              @input="fieldErrors.password = undefined"
               placeholder="Ingresá tu contraseña" /><button
               type="button"
               class="icon-button"
@@ -90,7 +96,7 @@ async function submit() {
                 v-else
                 :size="18"
               /></button></span
-        ></label>
+        ><small v-if="fieldErrors.password" class="field-error" role="alert">{{ fieldErrors.password }}</small></label>
         <details :open="!!route.query.switch">
           <summary>Elegir otro negocio</summary>
           <label class="mt-3"

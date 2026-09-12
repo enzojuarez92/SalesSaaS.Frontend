@@ -49,7 +49,7 @@ async function save() {
   </div>
   <section class="panel" style="max-width: 42rem">
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <form @submit.prevent="save">
+    <form novalidate @submit.prevent="save">
       <div class="form-grid">
         <label
           >Nombre<input

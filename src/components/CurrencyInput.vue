@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { nextTick, ref, watch } from "vue";
 
 const props = withDefaults(
   defineProps<{ modelValue: number; min?: number; currency?: boolean }>(),
@@ -15,6 +15,17 @@ function format(value: number) {
     maximumFractionDigits: 2,
   }).format(value);
   return props.currency ? `$ ${formatted}` : formatted;
+}
+function formatWhileEditing(value: number, source: string) {
+  const hasDecimal = /[,\.]/.test(source);
+  const decimalMatch = source.replace(/[^\d,.]/g, "").match(/[,\.]([^,.]*)$/);
+  const decimals = decimalMatch?.[1] ?? "";
+  const integer = Math.trunc(value);
+  const grouped = new Intl.NumberFormat("es-AR", {
+    maximumFractionDigits: 0,
+  }).format(integer);
+  if (!hasDecimal) return grouped;
+  return `${grouped},${decimals.slice(0, 2)}`;
 }
 function parse(value: string) {
   const text = value.replace(/[^\d,.-]/g, "").replace(/-/g, "");
@@ -35,11 +46,27 @@ function parse(value: string) {
 }
 function focus() {
   editing.value = true;
-  display.value = String(props.modelValue ?? props.min);
+  display.value = formatWhileEditing(Number(props.modelValue ?? props.min), "");
 }
-function input(event: Event) {
-  display.value = (event.target as HTMLInputElement).value;
-  emit("update:modelValue", parse(display.value));
+async function input(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const raw = input.value;
+  const cursor = input.selectionStart ?? raw.length;
+  const digitsBeforeCursor = raw.slice(0, cursor).replace(/\D/g, "").length;
+  const value = parse(raw);
+  emit("update:modelValue", value);
+  display.value = formatWhileEditing(value, raw);
+  await nextTick();
+  let seenDigits = 0;
+  let nextCursor = display.value.length;
+  for (let index = 0; index < display.value.length; index += 1) {
+    if (/\d/.test(display.value[index])) seenDigits += 1;
+    if (seenDigits >= digitsBeforeCursor) {
+      nextCursor = index + 1;
+      break;
+    }
+  }
+  input.setSelectionRange(nextCursor, nextCursor);
 }
 function blur() {
   editing.value = false;

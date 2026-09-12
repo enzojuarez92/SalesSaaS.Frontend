@@ -9,6 +9,7 @@ import {
 } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { money, dateTime } from "../services/format";
+import CurrencyInput from "../components/CurrencyInput.vue";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type { Product, PagedResult } from "../types/api";
@@ -169,7 +170,7 @@ onMounted(() => run(load));
   <p v-if="busy" role="status"><LoaderCircle class="spin" /> Procesando…</p>
   <section v-if="tab === 'orders'" class="panel">
     <h2>Nueva orden de compra</h2>
-    <form @submit.prevent="create">
+    <form novalidate @submit.prevent="create">
       <label
         >Proveedor<select v-model="supplierId" required>
           <option value="" disabled>Seleccionar proveedor</option>
@@ -205,12 +206,9 @@ onMounted(() => run(load));
             min="1"
             step="1" /></label
         ><label
-          >Costo unitario<input
-            v-model.number="line.unitCost"
-            type="number"
-            required
-            min="0"
-            step=".01" /></label
+          >Costo unitario<CurrencyInput
+            v-model="line.unitCost"
+            :min="0" /></label
         ><button
           type="button"
           class="icon-button"
@@ -277,7 +275,7 @@ onMounted(() => run(load));
         </tbody>
       </table>
     </div>
-    <form v-if="invoice.orderId" @submit.prevent="invoicePurchase">
+    <form v-if="invoice.orderId" novalidate @submit.prevent="invoicePurchase">
       <label
         >Número de factura del proveedor<input
           v-model.trim="invoice.number"
@@ -293,6 +291,7 @@ onMounted(() => run(load));
     <h2>Nuevo proveedor</h2>
     <form
       v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
+      novalidate
       @submit.prevent="createSupplier"
     >
       <div class="form-grid">
@@ -366,7 +365,7 @@ onMounted(() => run(load));
   </section>
   <section v-if="tab === 'brands'" class="panel">
     <h2>Marcas del catálogo</h2>
-    <form @submit.prevent="createBrand">
+    <form novalidate @submit.prevent="createBrand">
       <label
         >Nombre<input v-model.trim="brand" required maxlength="100" /></label
       ><button class="primary" :disabled="busy">Crear marca</button>

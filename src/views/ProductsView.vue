@@ -57,6 +57,7 @@ const adjustment = reactive({
   reason: "",
 });
 const quickCategory = reactive({ name: "", description: "" });
+const fieldErrors = reactive<Record<string, string>>({});
 const canManage = computed(() =>
   ["Owner", "Admin", "Warehouse"].includes(auth.user?.role || ""),
 );
@@ -128,7 +129,14 @@ function open(product?: Product) {
         },
   );
   error.value = "";
+  clearFieldErrors();
   showModal.value = true;
+}
+function clearFieldErrors() {
+  Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
+}
+function clearFieldError(field: string) {
+  if (fieldErrors[field]) delete fieldErrors[field];
 }
 function openAdjustment(product: Product) {
   adjusting.value = product;
@@ -142,22 +150,21 @@ function openAdjustment(product: Product) {
   showAdjustment.value = true;
 }
 function validate() {
-  return (
-    requiredText(form.sku, "El SKU", 50) ||
-    requiredText(form.name, "El nombre", 150) ||
-    nonNegative(form.price, "El precio") ||
-    nonNegative(form.cost, "El costo") ||
-    (![0, 10.5, 21].includes(form.vatRate)
-      ? "La alícuota de IVA debe ser 0%, 10,5% o 21%."
-      : "") ||
-    nonNegative(form.stock, "El stock") ||
-    nonNegative(form.minimumStockAlert, "La alerta mínima")
-  );
+  clearFieldErrors();
+  fieldErrors.sku = requiredText(form.sku, "El SKU", 50);
+  fieldErrors.name = requiredText(form.name, "El nombre", 150);
+  fieldErrors.price = form.price > 0 ? "" : "Ingresá un precio de venta mayor a cero.";
+  fieldErrors.cost = nonNegative(form.cost, "El costo");
+  fieldErrors.vatRate = [0, 10.5, 21].includes(form.vatRate)
+    ? ""
+    : "Elegí una alícuota de IVA válida.";
+  fieldErrors.stock = nonNegative(form.stock, "El stock inicial");
+  fieldErrors.minimumStockAlert = nonNegative(form.minimumStockAlert, "La alerta mínima");
+  return !Object.values(fieldErrors).some(Boolean);
 }
 async function save() {
-  const validation = validate();
-  if (validation) {
-    error.value = validation;
+  if (!validate()) {
+    error.value = "Revisá los campos marcados para continuar.";
     return;
   }
   if (!editingId.value && form.stock > 0 && !tenant.activeWarehouseId) {
@@ -366,6 +373,7 @@ watch(
                 <InventoryTools
                   :product-id="product.id"
                   :product-name="product.name"
+                  compact
                 /><button
                   :aria-label="`Ajustar ${product.name}`"
                   @click="openAdjustment(product)"
@@ -420,15 +428,30 @@ watch(
       </button>
       <h2>{{ editingId ? "Editar producto" : "Nuevo producto" }}</h2>
       <p v-if="error" class="error">{{ error }}</p>
-      <form @submit.prevent="save">
+      <form novalidate @submit.prevent="save">
         <div class="form-grid">
           <label
-            >SKU<input v-model.trim="form.sku" maxlength="50" required /></label
+            >SKU<input
+              v-model.trim="form.sku"
+              maxlength="50"
+              :aria-invalid="!!fieldErrors.sku"
+              @input="clearFieldError('sku')" /><small
+              v-if="fieldErrors.sku"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.sku }}</small
+            ></label
           ><label
             >Nombre<input
               v-model.trim="form.name"
               maxlength="150"
-              required /></label
+              :aria-invalid="!!fieldErrors.name"
+              @input="clearFieldError('name')" /><small
+              v-if="fieldErrors.name"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.name }}</small
+            ></label
           ><label class="wide"
             >Categoría<span class="category-field"
               ><select v-model="form.categoryId">
@@ -461,7 +484,13 @@ watch(
             >Precio de venta<CurrencyInput
               v-model="form.price"
               :min="0.01"
-              required /></label
+              :aria-invalid="!!fieldErrors.price"
+              @input="clearFieldError('price')" /><small
+              v-if="fieldErrors.price"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.price }}</small
+            ></label
           ><label
             >IVA<select v-model.number="form.vatRate">
               <option :value="21">21%</option>
@@ -469,7 +498,16 @@ watch(
               <option :value="0">0%</option>
             </select></label
           ><label
-            >Costo<CurrencyInput v-model="form.cost" :min="0" required /></label
+            >Costo<CurrencyInput
+              v-model="form.cost"
+              :min="0"
+              :aria-invalid="!!fieldErrors.cost"
+              @input="clearFieldError('cost')" /><small
+              v-if="fieldErrors.cost"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.cost }}</small
+            ></label
           ><label
             >Stock inicial<input
               class="quantity-input"
@@ -478,7 +516,13 @@ watch(
               min="0"
               step="1"
               :disabled="Boolean(editingId)"
-            /><small v-if="!editingId"
+              :aria-invalid="!!fieldErrors.stock"
+              @input="clearFieldError('stock')" /><small
+              v-if="fieldErrors.stock"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.stock }}</small
+            ><small v-if="!editingId"
               >Se asignará a
               {{
                 tenant.warehouses.find((w) => w.id === tenant.activeWarehouseId)
@@ -494,7 +538,13 @@ watch(
               type="number"
               min="0"
               step="1"
-          /></label>
+              :aria-invalid="!!fieldErrors.minimumStockAlert"
+              @input="clearFieldError('minimumStockAlert')" /><small
+              v-if="fieldErrors.minimumStockAlert"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.minimumStockAlert }}</small
+          ></label>
         </div>
         <button class="primary full" :disabled="saving">
           <LoaderCircle v-if="saving" class="spin" :size="16" />{{
@@ -519,13 +569,12 @@ watch(
       <h2>Nueva categoría</h2>
       <p>Se agregará al catálogo y quedará seleccionada en este producto.</p>
       <p v-if="error" class="error">{{ error }}</p>
-      <form @submit.prevent="saveQuickCategory">
+      <form novalidate @submit.prevent="saveQuickCategory">
         <label
           >Nombre<input
             v-model.trim="quickCategory.name"
             maxlength="100"
             autofocus
-            required
             placeholder="Ej. Bebidas" /></label
         ><label
           >Descripción <small>Opcional</small
@@ -556,7 +605,7 @@ watch(
         <strong>{{ adjusting.stock }}</strong>
       </p>
       <p v-if="error" class="error">{{ error }}</p>
-      <form @submit.prevent="saveAdjustment">
+      <form novalidate @submit.prevent="saveAdjustment">
         <label
           >Depósito<select v-model="adjustment.warehouseId">
             <option value="">Elegí un depósito</option>

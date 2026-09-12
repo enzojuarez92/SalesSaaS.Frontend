@@ -388,7 +388,7 @@ async function saveProfile() {
             {{ profileError }}
           </p>
           <p v-else-if="profileLoading" role="status">Cargando perfil…</p>
-          <form v-else @submit.prevent="saveProfile">
+          <form v-else novalidate @submit.prevent="saveProfile">
             <div class="form-grid">
               <label
                 >Nombre<input

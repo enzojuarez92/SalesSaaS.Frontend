@@ -233,7 +233,7 @@ watch(
           </tbody>
         </table>
       </div>
-      <form v-if="tenant.warehouses.length > 1" @submit.prevent="transfer">
+      <form v-if="tenant.warehouses.length > 1" novalidate @submit.prevent="transfer">
         <h3>Transferir desde esta sucursal</h3>
         <div class="form-grid">
           <label

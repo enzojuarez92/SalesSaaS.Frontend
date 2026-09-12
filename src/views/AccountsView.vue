@@ -41,6 +41,7 @@ const showForm = ref(false),
   statementLoading = ref(false),
   paymentAmount = ref(0),
   paymentDescription = ref("");
+const fieldErrors = reactive<Record<string, string>>({});
 const form = reactive({
   id: "",
   name: "",
@@ -86,11 +87,13 @@ function clearForm() {
 }
 function openNew() {
   clearForm();
+  clearFieldErrors();
   error.value = "";
   showForm.value = true;
 }
 function openEdit(customer: Customer) {
   Object.assign(form, customer);
+  clearFieldErrors();
   error.value = "";
   showForm.value = true;
 }
@@ -100,21 +103,31 @@ function normalizeDocument() {
     form.documentType === "DNI" ? 8 : 11,
   );
 }
+function clearFieldErrors() {
+  Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
+}
+function clearFieldError(field: string) {
+  if (fieldErrors[field]) delete fieldErrors[field];
+}
 function validateForm() {
-  const nameError = requiredText(form.name, "El nombre", 150);
-  if (nameError) return nameError;
-  if (form.documentType === "DNI" && !/^\d{8}$/.test(form.documentNumber))
-    return "El DNI debe contener exactamente 8 dígitos.";
-  if (
-    form.documentType !== "DNI" &&
-    !isValidArgentineTaxId(form.documentNumber)
-  )
-    return "El CUIT/CUIL debe tener 11 dígitos y ser válido.";
-  if (form.email && !isValidEmail(form.email))
-    return "Ingresá un email válido.";
-  return form.allowCredit
+  clearFieldErrors();
+  fieldErrors.name = requiredText(form.name, "El nombre o razón social", 150);
+  fieldErrors.documentNumber =
+    form.documentType === "DNI"
+      ? /^\d{8}$/.test(form.documentNumber)
+        ? ""
+        : "El DNI es obligatorio y debe tener 8 dígitos."
+      : isValidArgentineTaxId(form.documentNumber)
+        ? ""
+        : "Ingresá un CUIT/CUIL argentino válido de 11 dígitos.";
+  fieldErrors.email =
+    !form.email || isValidEmail(form.email)
+      ? ""
+      : "Ingresá un correo electrónico válido.";
+  fieldErrors.creditLimit = form.allowCredit
     ? nonNegative(form.creditLimit, "El límite de crédito")
     : "";
+  return !Object.values(fieldErrors).some(Boolean);
 }
 async function load() {
   if (!auth.tenantId) return;
@@ -141,9 +154,8 @@ async function load() {
 }
 async function save() {
   if (saving.value) return;
-  const validation = validateForm();
-  if (validation) {
-    error.value = validation;
+  if (!validateForm()) {
+    error.value = "Revisá los campos marcados para continuar.";
     return;
   }
   saving.value = true;
@@ -237,6 +249,7 @@ watch(
   () => form.allowCredit,
   (enabled) => {
     if (!enabled) form.creditLimit = 0;
+    clearFieldError("creditLimit");
   },
 );
 watch(search, () => {
@@ -400,13 +413,19 @@ watch(
         <X />
       </button>
       <h2>{{ form.id ? "Editar cliente" : "Nuevo cliente" }}</h2>
-      <form @submit.prevent="save">
+      <form novalidate @submit.prevent="save">
         <div class="form-grid">
           <label class="wide"
             >Nombre / razón social<input
               v-model.trim="form.name"
               maxlength="150"
-              required /></label
+              :aria-invalid="!!fieldErrors.name"
+              @input="clearFieldError('name')" /><small
+              v-if="fieldErrors.name"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.name }}</small
+            ></label
           ><label
             >Tipo de documento<select
               v-model="form.documentType"
@@ -421,12 +440,25 @@ watch(
             }}<input
               v-model="form.documentNumber"
               inputmode="numeric"
-              @input="normalizeDocument"
-              required /></label
+              @input="normalizeDocument(); clearFieldError('documentNumber')"
+              :aria-invalid="!!fieldErrors.documentNumber"
+              /><small
+              v-if="fieldErrors.documentNumber"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.documentNumber }}</small
+            ></label
           ><label
             >Correo electrónico<input
               v-model.trim="form.email"
-              type="email" /></label
+              type="email"
+              :aria-invalid="!!fieldErrors.email"
+              @input="clearFieldError('email')" /><small
+              v-if="fieldErrors.email"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.email }}</small
+            ></label
           ><label>Teléfono<input v-model.trim="form.phone" /></label
           ><label class="wide"
             >Dirección<input v-model.trim="form.address" /></label
@@ -442,8 +474,14 @@ watch(
             >Límite de crédito<CurrencyInput
               v-model="form.creditLimit"
               :min="0"
-              required
-          /></label>
+              :aria-invalid="!!fieldErrors.creditLimit"
+              @input="clearFieldError('creditLimit')"
+            /><small
+              v-if="fieldErrors.creditLimit"
+              class="field-error"
+              role="alert"
+              >{{ fieldErrors.creditLimit }}</small
+          ></label>
         </div>
         <button class="primary full" :disabled="saving">
           <LoaderCircle v-if="saving" class="spin" :size="16" />{{
@@ -497,13 +535,12 @@ watch(
           Sin movimientos todavía.
         </p>
       </div>
-      <form class="payment-form" @submit.prevent="recordPayment">
+      <form class="payment-form" novalidate @submit.prevent="recordPayment">
         <h3>Registrar entrega de dinero</h3>
         <label
           >Importe<CurrencyInput
             v-model="paymentAmount"
-            :min="0.01"
-            required /></label
+            :min="0.01" /></label
         ><label
           >Descripción<input
             v-model.trim="paymentDescription"

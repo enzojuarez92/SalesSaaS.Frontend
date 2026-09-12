@@ -25,6 +25,9 @@ const form = reactive({
 const busy = ref(false),
   error = ref("");
 const fieldErrors = reactive<Record<string, string>>({});
+function clearFieldError(field: string) {
+  if (fieldErrors[field]) delete fieldErrors[field];
+}
 function sanitizeTaxId() {
   form.taxId = digitsOnly(form.taxId, 11);
 }
@@ -86,6 +89,7 @@ async function submit() {
               required
               maxlength="100"
               :aria-invalid="!!fieldErrors.firstName"
+              @input="clearFieldError('firstName')"
             /><small v-if="fieldErrors.firstName" class="field-error">{{
               fieldErrors.firstName
             }}</small></label
@@ -93,10 +97,11 @@ async function submit() {
             >Apellido<input
               v-model.trim="form.lastName"
               autocomplete="family-name"
-              required
-              maxlength="100"
-              :aria-invalid="!!fieldErrors.lastName"
-          /></label>
+            required
+            maxlength="100"
+            :aria-invalid="!!fieldErrors.lastName"
+            @input="clearFieldError('lastName')"
+          /><small v-if="fieldErrors.lastName" class="field-error" role="alert">{{ fieldErrors.lastName }}</small></label>
         </div>
         <label
           >Nombre del negocio<input
@@ -105,7 +110,8 @@ async function submit() {
             required
             maxlength="150"
             :aria-invalid="!!fieldErrors.tenantName"
-            placeholder="Tu empresa" /></label
+            @input="clearFieldError('tenantName')"
+            placeholder="Tu empresa" /><small v-if="fieldErrors.tenantName" class="field-error" role="alert">{{ fieldErrors.tenantName }}</small></label
         ><label
           >CUIT / Identificación fiscal <small>Opcional por ahora</small><input
             v-model="form.taxId"
@@ -127,7 +133,8 @@ async function submit() {
             required
             maxlength="256"
             :aria-invalid="!!fieldErrors.email"
-            placeholder="vos@tuempresa.com" /></label
+            @input="clearFieldError('email')"
+            placeholder="vos@tuempresa.com" /><small v-if="fieldErrors.email" class="field-error" role="alert">{{ fieldErrors.email }}</small></label
         ><label
           >Contraseña<input
             v-model="form.password"
@@ -136,30 +143,12 @@ async function submit() {
             required
             minlength="12"
             :aria-invalid="!!fieldErrors.password"
+            @input="clearFieldError('password')"
             pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{12,}"
             aria-describedby="password-hint"
-        /></label>
+        /><small v-if="fieldErrors.password" class="field-error" role="alert">{{ fieldErrors.password }}</small></label>
         <p id="password-hint" class="hint">
           Al menos 12 caracteres, una mayúscula, una minúscula y un número.
-        </p>
-        <p
-          v-if="
-            fieldErrors.firstName ||
-            fieldErrors.lastName ||
-            fieldErrors.tenantName ||
-            fieldErrors.email ||
-            fieldErrors.password
-          "
-          class="error"
-          role="alert"
-        >
-          {{
-            fieldErrors.firstName ||
-            fieldErrors.lastName ||
-            fieldErrors.tenantName ||
-            fieldErrors.email ||
-            fieldErrors.password
-          }}
         </p>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <button class="primary full" :disabled="busy">

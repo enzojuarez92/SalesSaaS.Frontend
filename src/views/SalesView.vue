@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { money } from "../services/format";
+import CurrencyInput from "../components/CurrencyInput.vue";
 import { computed, ref, watch } from "vue";
 import {
   CheckCircle2,
@@ -700,13 +701,11 @@ async function saveQuote() {
       <p>
         Ingresá el fondo inicial para habilitar las ventas en este depósito.
       </p>
-      <form @submit.prevent="submitQuickOpen">
+      <form novalidate @submit.prevent="submitQuickOpen">
         <label
-          >Fondo inicial<input
-            v-model.number="openingBalance"
-            type="number"
-            min="0"
-            step="0.01"
+          >Fondo inicial<CurrencyInput
+            v-model="openingBalance"
+            :min="0"
             autofocus /></label
         ><button class="primary full" :disabled="saving">
           <LoaderCircle v-if="saving" class="spin" :size="16" />{{
