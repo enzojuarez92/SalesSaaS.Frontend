@@ -507,6 +507,11 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.cost }}</small
+            ><small
+              v-else
+              class="input-hint-space"
+              aria-hidden="true"
+              >&nbsp;</small
             ></label
           ><label
             >Stock inicial<input
@@ -674,6 +679,11 @@ watch(
   height: 3.25rem;
   padding: 0 0.95rem;
   line-height: 1.2;
+}
+.product-modal .input-hint-space {
+  display: block;
+  min-height: 1.2rem;
+  margin-top: 0.35rem;
 }
 :deep(.invoice-actions) {
   align-items: center;
