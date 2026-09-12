@@ -50,6 +50,7 @@ const discountPercent = ref(0),
   error = ref(""),
   success = ref("");
 const invoiceId = ref(""),
+  issuedOrderId = ref(""),
   invoiceNumber = ref(""),
   authorization = ref<AfipAuthorization | null>(null),
   showAfip = ref(false),
@@ -60,9 +61,7 @@ const invoiceId = ref(""),
   checkingCash = ref(false),
   showQuickOpen = ref(false),
   openingBalance = ref(0);
-const pendingNet = ref(0),
-  pendingIva = ref(0),
-  issuedTotal = ref(0);
+const issuedTotal = ref(0);
 
 const subtotal = computed(() =>
   cart.value.reduce((total, item) => total + item.price * item.quantity, 0),
@@ -327,9 +326,7 @@ async function createSale() {
   authorization.value = null;
   invoiceId.value = "";
   invoiceNumber.value = "";
-  const saleTotal = total.value,
-    saleNet = net.value,
-    saleIva = iva.value;
+  const saleTotal = total.value;
   try {
     const payload = {
       tenantId: auth.tenantId,
@@ -363,8 +360,7 @@ async function createSale() {
       throw new Error(
         "La API no devolvió el identificador de la venta. Verificá Reportes antes de intentar nuevamente.",
       );
-    pendingNet.value = saleNet;
-    pendingIva.value = saleIva;
+    issuedOrderId.value = orderId;
     issuedTotal.value = saleTotal;
     success.value = `Venta registrada por ${money(saleTotal)} con ${paymentOptions.find((option) => option.value === payment.value)?.label.toLowerCase()}.`;
     cart.value = [];
@@ -410,27 +406,21 @@ async function createSale() {
   }
 }
 async function authorize() {
-  if (!invoiceId.value) return;
+  if (!issuedOrderId.value) return;
   saving.value = true;
   error.value = "";
   try {
-    const { data } = await api.post<AfipAuthorization>(
-      `/afip/invoices/${invoiceId.value}/authorize`,
-      {
+    const { data: invoice } = await api.post<{
+      invoiceId: string; status: string; cae: string | null; caeExpirationDate: string | null; qrUrl: string | null; errors: string | null;
+    }>("/invoices/issue", {
         tenantId: auth.tenantId,
-        invoiceId: invoiceId.value,
-        voucherType: 6,
-        concept: 1,
-        exemptAmount: 0,
-        vatItems: [
-          { id: 5, baseAmount: pendingNet.value, amount: pendingIva.value },
-        ],
-        serviceStartDate: null,
-        serviceEndDate: null,
-        paymentDueDate: null,
+        orderId: issuedOrderId.value,
+        documentType: documentType.value,
       },
     );
-    authorization.value = data;
+    invoiceId.value = invoice.invoiceId;
+    authorization.value = { invoiceId: invoice.invoiceId, isApproved: invoice.status === "Issued" && Boolean(invoice.cae), cae: invoice.cae, caeExpirationDate: invoice.caeExpirationDate, barCode: invoice.qrUrl, errors: invoice.errors };
+    if (invoice.errors) error.value = invoice.errors;
   } catch (cause) {
     error.value = apiError(cause);
   } finally {

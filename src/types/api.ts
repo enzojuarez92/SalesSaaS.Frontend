@@ -114,6 +114,7 @@ export interface Product {
   description: string;
   price: number;
   cost: number;
+  vatRate: number;
   stock: number;
   minimumStockAlert: number;
   isActive: boolean;

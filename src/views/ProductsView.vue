@@ -44,6 +44,7 @@ const form = reactive({
   description: "",
   price: 0,
   cost: 0,
+  vatRate: 21,
   stock: 0,
   minimumStockAlert: 0,
   categoryId: "",
@@ -108,6 +109,7 @@ function open(product?: Product) {
           description: product.description,
           price: product.price,
           cost: product.cost,
+          vatRate: product.vatRate,
           stock: product.stock,
           minimumStockAlert: product.minimumStockAlert,
           categoryId: product.categoryId || "",
@@ -118,6 +120,7 @@ function open(product?: Product) {
           description: "",
           price: 0,
           cost: 0,
+          vatRate: 21,
           stock: 0,
           minimumStockAlert: 0,
           categoryId: "",
@@ -143,6 +146,9 @@ function validate() {
     requiredText(form.name, "El nombre", 150) ||
     nonNegative(form.price, "El precio") ||
     nonNegative(form.cost, "El costo") ||
+    (![0, 10.5, 21].includes(form.vatRate)
+      ? "La alícuota de IVA debe ser 0%, 10,5% o 21%."
+      : "") ||
     nonNegative(form.stock, "El stock") ||
     nonNegative(form.minimumStockAlert, "La alerta mínima")
   );
@@ -457,6 +463,12 @@ watch(
               required
               min="0.01"
               step="0.01" /></label
+          ><label
+            >IVA<select v-model.number="form.vatRate">
+              <option :value="21">21%</option>
+              <option :value="10.5">10,5%</option>
+              <option :value="0">0%</option>
+            </select></label
           ><label
             >Costo<input
               v-model.number="form.cost"
