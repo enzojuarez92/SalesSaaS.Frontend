@@ -66,6 +66,7 @@ const invoiceId = ref(""),
 const issuedTotal = ref(0);
 const saleSummary = ref("");
 const isInternalTicket = ref(true);
+const activeQuoteId = ref("");
 
 watch(error, (message) => {
   if (!message) return;
@@ -159,6 +160,7 @@ function loadPendingQuote() {
   if (!stored || !products.value.length || !customers.value.length) return;
   try {
     const quote = JSON.parse(stored) as {
+      id: string;
       customerId: string;
       items: Array<{ productId: string; quantity: number }>;
     };
@@ -172,6 +174,7 @@ function loadPendingQuote() {
     if (!customer) throw new Error("El cliente del presupuesto no está disponible.");
     cart.value = lines;
     selectedCustomer.value = customer;
+    activeQuoteId.value = quote.id;
     customerSearch.value = "";
     discountPercent.value = 0;
     success.value = "Presupuesto cargado en el POS. Revisá el detalle y continuá con el cobro.";
@@ -378,6 +381,7 @@ async function createSale() {
       warehouseId: tenant.activeWarehouseId,
       discountAmount: discount.value,
       paymentMethod: payment.value,
+      quoteId: activeQuoteId.value || undefined,
       items: cart.value.map((item) => ({
         productId: item.id,
         quantity: item.quantity,
@@ -409,6 +413,7 @@ async function createSale() {
     saleSummary.value = `Venta registrada por ${money(saleTotal)} con ${paymentOptions.find((option) => option.value === payment.value)?.label.toLowerCase()}.`;
     success.value = saleSummary.value;
     cart.value = [];
+    activeQuoteId.value = "";
     showPayment.value = false;
     try {
       const { data: invoice } = await api.post<{
@@ -489,6 +494,7 @@ watch(
   () => tenant.activeWarehouseId,
   () => {
     cart.value = [];
+    activeQuoteId.value = "";
     selectedCustomer.value = null;
     products.value = [];
     showPayment.value = false;

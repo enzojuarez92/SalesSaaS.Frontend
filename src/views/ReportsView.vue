@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { money } from "../services/format";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { Download, FileText, Package, ShieldCheck } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-type ReportSale = { id?: string; date: string; customer: string; total: number; paymentMethod: string; status: string };
+type ReportSale = { id?: string; date: string; customer: string; total: number; paymentMethod: number; status: string };
 type AuditRow = { id?: string; entityName: string; action: string; timestampUtc: string };
 type InventoryValuation = { cost?: number; retail?: number };
 const auth = useAuthStore(),
@@ -17,12 +17,17 @@ const auth = useAuthStore(),
   error = ref(""),
   from = ref(""),
   to = ref(""),
-  exporting = ref(false);
+  exporting = ref(false),
+  paymentMethod = ref<number | "">("");
+const paymentOptions = [{ value: 1, label: "Efectivo" }, { value: 5, label: "Mercado Pago" }, { value: 4, label: "Transferencia" }, { value: 2, label: "Tarjeta de crédito" }, { value: 3, label: "Tarjeta de débito" }, { value: 6, label: "Cuenta corriente" }];
+const paymentLabel = (method: number) => paymentOptions.find((item) => item.value === method)?.label || "Sin especificar";
+const totalsByPayment = computed(() => paymentOptions.map((option) => ({ ...option, total: rows.value.filter((row) => row.paymentMethod === option.value && row.status !== "Cancelled").reduce((sum, row) => sum + row.total, 0) })).filter((item) => item.total > 0));
 const p = () => ({
   tenantId: auth.tenantId,
   warehouseId: tenant.activeWarehouseId || undefined,
   fromUtc: from.value || undefined,
   toUtc: to.value || undefined,
+  paymentMethod: paymentMethod.value || undefined,
 });
 async function load() {
   try {
@@ -78,6 +83,7 @@ watch(() => tenant.activeWarehouseId, load);
     <div class="inventory-toolbar">
       <label>Desde<input v-model="from" type="date" /></label
       ><label>Hasta<input v-model="to" type="date" /></label
+      ><label v-if="tab === 'sales'">Medio de pago<select v-model.number="paymentMethod"><option value="">Todos</option><option v-for="option in paymentOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label
       ><button class="secondary" @click="load">Aplicar</button
       ><button
         v-if="tab === 'sales'"
@@ -92,6 +98,7 @@ watch(() => tenant.activeWarehouseId, load);
     </div>
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="tab === 'sales'" class="responsive-table">
+      <div v-if="totalsByPayment.length" class="payment-summary"><article v-for="item in totalsByPayment" :key="item.value"><small>{{ item.label }}</small><strong>{{ money(item.total) }}</strong></article></div>
       <table>
         <thead>
           <tr>
@@ -107,7 +114,7 @@ watch(() => tenant.activeWarehouseId, load);
             <td>{{ new Date(r.date).toLocaleDateString("es-AR") }}</td>
             <td>{{ r.customer }}</td>
             <td>{{ money(r.total) }}</td>
-            <td>{{ r.paymentMethod }}</td>
+            <td>{{ paymentLabel(r.paymentMethod) }}</td>
             <td>{{ r.status }}</td>
           </tr>
           <tr v-if="!rows.length">
@@ -145,3 +152,6 @@ watch(() => tenant.activeWarehouseId, load);
     </div>
   </section>
 </template>
+<style scoped>
+.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.payment-summary strong{color:#0f172a}
+</style>

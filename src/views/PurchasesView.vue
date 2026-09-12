@@ -19,7 +19,10 @@ type Supplier = {
   id: string;
   legalName: string;
   taxId: string;
+  taxCondition: string;
   email: string;
+  phone?: string;
+  address?: string;
   isActive: boolean;
 };
 type Purchase = {
@@ -38,12 +41,16 @@ const tab = ref("orders"),
   orders = ref<Purchase[]>([]),
   brands = ref<Array<{ id: string; name: string }>>([]),
   brand = ref(""),
-  supplierId = ref("");
+  supplierId = ref(""),
+  editingSupplier = ref<Supplier | null>(null);
 const supplier = reactive({
   legalName: "",
   taxId: "",
   taxCondition: "Responsable Inscripto",
   email: "",
+  phone: "",
+  address: "",
+  isActive: true,
 });
 const lines = ref<
   Array<{ productId: string; quantity: number; unitCost: number }>
@@ -119,13 +126,13 @@ async function receive(order: Purchase) {
 }
 async function createSupplier() {
   await run(async () => {
-    await api.post("/suppliers", { tenantId: auth.tenantId, ...supplier });
-    supplier.legalName = "";
-    supplier.taxId = "";
-    supplier.email = "";
+    if (editingSupplier.value) await api.put(`/suppliers/${editingSupplier.value.id}`, { tenantId: auth.tenantId, id: editingSupplier.value.id, ...supplier });
+    else await api.post("/suppliers", { tenantId: auth.tenantId, ...supplier });
+    resetSupplier();
     await load();
   });
 }
+function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; supplier.legalName = target?.legalName || ""; supplier.taxId = target?.taxId || ""; supplier.taxCondition = target?.taxCondition || "Responsable Inscripto"; supplier.email = target?.email || ""; supplier.phone = target?.phone || ""; supplier.address = target?.address || ""; supplier.isActive = target?.isActive ?? true; }
 async function createBrand() {
   await run(async () => {
     await api.post("/brands", { tenantId: auth.tenantId, name: brand.value });
@@ -288,7 +295,7 @@ onMounted(() => run(load));
     </form>
   </section>
   <section v-if="tab === 'suppliers'" class="panel">
-    <h2>Nuevo proveedor</h2>
+    <div class="section-heading"><h2>{{ editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2><button v-if="editingSupplier" type="button" class="secondary" @click="resetSupplier()">Cancelar edición</button></div>
     <form
       v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
       novalidate
@@ -308,6 +315,8 @@ onMounted(() => run(load));
             pattern="[0-9]{11}"
             maxlength="11" /></label
         ><label>Email<input v-model.trim="supplier.email" type="email" /></label
+        ><label>Teléfono<input v-model.trim="supplier.phone" maxlength="30" /></label
+        ><label class="wide-field">Dirección<input v-model.trim="supplier.address" maxlength="300" /></label
         ><label
           >Condición fiscal<select v-model="supplier.taxCondition">
             <option>Responsable Inscripto</option>
@@ -316,7 +325,8 @@ onMounted(() => run(load));
           </select></label
         >
       </div>
-      <button class="primary" :disabled="busy">Crear proveedor</button>
+      <label v-if="editingSupplier" class="check-row"><input v-model="supplier.isActive" type="checkbox" /><span>Proveedor activo</span></label>
+      <button class="primary" :disabled="busy">{{ editingSupplier ? 'Guardar proveedor' : 'Crear proveedor' }}</button>
     </form>
     <div class="responsive-table">
       <table>
@@ -324,7 +334,9 @@ onMounted(() => run(load));
           <tr>
             <th>Proveedor</th>
             <th>CUIT</th>
+            <th>Contacto</th>
             <th>Email</th>
+            <th>Estado</th>
             <th>Cuenta</th>
           </tr>
         </thead>
@@ -332,8 +344,11 @@ onMounted(() => run(load));
           <tr v-for="s in suppliers" :key="s.id">
             <td>{{ s.legalName }}</td>
             <td>{{ s.taxId }}</td>
+            <td>{{ s.phone || 'Sin teléfono' }}<small>{{ s.address || 'Sin dirección' }}</small></td>
             <td>{{ s.email }}</td>
+            <td><span :class="s.isActive ? 'status success-status' : 'status danger'">{{ s.isActive ? 'Activo' : 'Inactivo' }}</span></td>
             <td>
+              <button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="secondary" :disabled="busy" @click="resetSupplier(s)">Editar</button>
               <button
                 v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
                 class="secondary"
@@ -353,7 +368,7 @@ onMounted(() => run(load));
             </td>
           </tr>
           <tr v-if="!suppliers.length">
-            <td colspan="4">Creá un proveedor para comenzar a comprar.</td>
+            <td colspan="6">Creá un proveedor para comenzar a comprar.</td>
           </tr>
         </tbody>
       </table>
@@ -391,6 +406,7 @@ h2 {
   flex-wrap: wrap;
   gap: 0.75rem;
 }
+.wide-field{grid-column:span 2}.responsive-table small{display:block;color:#64748b;margin-top:.2rem}
 @media (max-width: 650px) {
   .purchase-line {
     grid-template-columns: 1fr 1fr;
@@ -398,5 +414,6 @@ h2 {
   .purchase-line > label:first-child {
     grid-column: 1/-1;
   }
+  .wide-field{grid-column:span 1}
 }
 </style>

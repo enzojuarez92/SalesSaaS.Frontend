@@ -26,6 +26,7 @@ const isCurrent = (quote: Quote) =>
   quote.status === "Draft" && new Date(quote.expiresAtUtc).getTime() >= Date.now();
 const statusLabel = (quote: Quote) => {
   if (quote.status === "Cancelled") return "Anulado";
+  if (quote.status === "Invoiced") return "Facturado";
   return isCurrent(quote) ? "Vigente" : "Vencido";
 };
 
@@ -86,7 +87,7 @@ onMounted(load);
             <td data-label="Cliente">{{ quote.customer }}</td>
             <td data-label="Total cotizado">{{ money(quote.totalAmount) }}</td>
             <td data-label="Vencimiento">{{ dateTime(quote.expiresAtUtc) }}</td>
-            <td data-label="Estado"><span :class="isCurrent(quote) ? 'status success-status' : 'status danger'">{{ statusLabel(quote) }}</span></td>
+            <td data-label="Estado"><span :class="quote.status === 'Invoiced' ? 'status info-status' : isCurrent(quote) ? 'status success-status' : 'status danger'">{{ statusLabel(quote) }}</span></td>
             <td data-label="Acciones">
               <div v-if="isCurrent(quote)" class="invoice-actions">
                 <button title="Cargar presupuesto en POS" :aria-label="`Cargar presupuesto de ${quote.customer} en POS`" @click="loadInPos(quote)"><FilePenLine :size="16" /></button>
