@@ -6,6 +6,9 @@ import {
   LoaderCircle,
   Trash2,
   Truck,
+  Pencil,
+  ScrollText,
+  Save,
 } from "lucide-vue-next";
 import { api, apiError, notify } from "../services/api";
 import { money, dateTime } from "../services/format";
@@ -38,8 +41,6 @@ const tab = ref("orders"),
   suppliers = ref<Supplier[]>([]),
   products = ref<Product[]>([]),
   orders = ref<Purchase[]>([]),
-  brands = ref<Array<{ id: string; name: string }>>([]),
-  brand = ref(""),
   supplierId = ref(""),
   editingSupplier = ref<Supplier | null>(null);
 const supplier = reactive({
@@ -85,16 +86,14 @@ async function load() {
     warehouseId: tenant.activeWarehouseId,
     pageSize: 100,
   };
-  const [o, s, p, b] = await Promise.all([
+  const [o, s, p] = await Promise.all([
     api.get<Purchase[]>("/purchases/orders"),
     api.get<Supplier[]>("/suppliers", { params }),
     api.get<PagedResult<Product>>("/products", { params }),
-    api.get<Array<{ id: string; name: string }>>("/brands", { params }),
   ]);
   orders.value = o.data;
   suppliers.value = s.data;
   products.value = p.data.items;
-  brands.value = b.data;
 }
 async function create() {
   await run(async () => {
@@ -132,13 +131,6 @@ async function createSupplier() {
   }, editingSupplier.value ? "Proveedor actualizado." : "Proveedor creado.");
 }
 function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; supplier.legalName = target?.legalName || ""; supplier.taxId = target?.taxId || ""; supplier.taxCondition = target?.taxCondition || "Responsable Inscripto"; supplier.email = target?.email || ""; supplier.phone = target?.phone || ""; supplier.address = target?.address || ""; supplier.isActive = target?.isActive ?? true; }
-async function createBrand() {
-  await run(async () => {
-    await api.post("/brands", { tenantId: auth.tenantId, name: brand.value });
-    brand.value = "";
-    await load();
-  }, "Marca creada.");
-}
 async function invoicePurchase() {
   await run(async () => {
     await api.post("/purchases/invoices", {
@@ -170,7 +162,7 @@ onMounted(() => run(load));
   <div class="tabs">
     <button type="button" :class="{ active: tab === 'orders' }" @click="tab = 'orders'">Compras</button
     ><button type="button" :class="{ active: tab === 'suppliers' }" @click="tab = 'suppliers'">Proveedores</button
-    ><button type="button" :class="{ active: tab === 'brands' }" @click="tab = 'brands'">Marcas</button>
+    >
   </div>
   <p v-if="busy" role="status"><LoaderCircle class="spin" /> Procesando…</p>
   <section v-if="tab === 'orders'" class="panel">
@@ -323,8 +315,8 @@ onMounted(() => run(load));
           </select></label
         >
       </div>
-      <label v-if="editingSupplier" class="check-row"><input v-model="supplier.isActive" type="checkbox" /><span>Proveedor activo</span></label>
-      <button class="primary" :disabled="busy">{{ editingSupplier ? 'Guardar proveedor' : 'Crear proveedor' }}</button>
+      <label v-if="editingSupplier" class="supplier-active"><input v-model="supplier.isActive" type="checkbox" /><span><strong>Proveedor activo</strong><small>Podrá seleccionarse al crear nuevas órdenes de compra.</small></span></label>
+      <button class="primary icon-submit" :disabled="busy" :title="editingSupplier ? 'Guardar proveedor' : 'Crear proveedor'" :aria-label="editingSupplier ? 'Guardar proveedor' : 'Crear proveedor'"><Save :size="18" /><span class="sr-only">{{ editingSupplier ? 'Guardar proveedor' : 'Crear proveedor' }}</span></button>
     </form>
     <div class="responsive-table">
       <table>
@@ -335,7 +327,7 @@ onMounted(() => run(load));
             <th>Contacto</th>
             <th>Email</th>
             <th>Estado</th>
-            <th>Cuenta</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -346,11 +338,13 @@ onMounted(() => run(load));
             <td>{{ s.email }}</td>
             <td><span :class="s.isActive ? 'status success-status' : 'status danger'">{{ s.isActive ? 'Activo' : 'Inactivo' }}</span></td>
             <td>
-              <button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="secondary" :disabled="busy" @click="resetSupplier(s)">Editar</button>
+              <div class="supplier-actions"><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="icon-button" :disabled="busy" title="Editar proveedor" :aria-label="`Editar ${s.legalName}`" @click="resetSupplier(s)"><Pencil :size="17" /></button>
               <button
                 v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
-                class="secondary"
+                class="icon-button"
                 :disabled="busy"
+                title="Ver movimientos de cuenta"
+                :aria-label="`Ver movimientos de ${s.legalName}`"
                 @click="
                   run(async () => {
                     statement = (
@@ -360,9 +354,7 @@ onMounted(() => run(load));
                     ).data;
                   })
                 "
-              >
-                Ver movimientos
-              </button>
+              ><ScrollText :size="17" /></button></div>
             </td>
           </tr>
           <tr v-if="!suppliers.length">
@@ -376,18 +368,6 @@ onMounted(() => run(load));
       ><strong>{{ money(entry.amount) }}</strong>
     </article>
   </section>
-  <section v-if="tab === 'brands'" class="panel">
-    <h2>Marcas del catálogo</h2>
-    <form novalidate @submit.prevent="createBrand">
-      <label
-        >Nombre<input v-model.trim="brand" required maxlength="100" /></label
-      ><button class="primary" :disabled="busy">Crear marca</button>
-    </form>
-    <ul>
-      <li v-for="b in brands" :key="b.id">{{ b.name }}</li>
-    </ul>
-    <p v-if="!brands.length">Todavía no hay marcas cargadas.</p>
-  </section>
 </template>
 <style scoped>
 .purchase-line {
@@ -398,6 +378,7 @@ onMounted(() => run(load));
   margin: 0.8rem 0;
 }
 .tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{background:#ec4899;color:#fff;border-color:#ec4899}.supplier-picker{display:flex;align-items:end;gap:.75rem}.supplier-picker label{flex:1}
+.supplier-actions{display:flex;align-items:center;gap:.5rem}.supplier-active{display:flex;align-items:center;gap:.75rem;min-height:4.5rem;padding:.8rem 1rem;margin:.8rem 0;border:1px solid #e2e8f0;border-radius:.8rem;cursor:pointer}.supplier-active input{width:1.15rem;height:1.15rem;margin:0;accent-color:#ec4899}.supplier-active span{display:grid;gap:.2rem}.supplier-active small{color:#64748b}.icon-submit{width:3rem;display:grid;place-items:center}
 h2 {
   margin: 1rem 0;
 }
