@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { download } from "../services/download";
 import { money } from "../services/format";
+import CurrencyInput from "../components/CurrencyInput.vue";
 import { computed, reactive, ref, watch } from "vue";
 import {
   CircleDollarSign,
@@ -111,7 +112,9 @@ function validateForm() {
     return "El CUIT/CUIL debe tener 11 dígitos y ser válido.";
   if (form.email && !isValidEmail(form.email))
     return "Ingresá un email válido.";
-  return nonNegative(form.creditLimit, "El límite de crédito");
+  return form.allowCredit
+    ? nonNegative(form.creditLimit, "El límite de crédito")
+    : "";
 }
 async function load() {
   if (!auth.tenantId) return;
@@ -146,7 +149,12 @@ async function save() {
   saving.value = true;
   error.value = "";
   try {
-    const payload = { ...form, tenantId: auth.tenantId, legalName: form.name };
+    const payload = {
+      ...form,
+      creditLimit: form.allowCredit ? form.creditLimit : 0,
+      tenantId: auth.tenantId,
+      legalName: form.name,
+    };
     if (form.id) await api.put(`/customers/${form.id}`, payload);
     else await api.post("/customers", payload);
     showForm.value = false;
@@ -225,6 +233,12 @@ async function recordPayment() {
   }
 }
 let debounce: number | undefined;
+watch(
+  () => form.allowCredit,
+  (enabled) => {
+    if (!enabled) form.creditLimit = 0;
+  },
+);
 watch(search, () => {
   page.value = 1;
   window.clearTimeout(debounce);
@@ -416,12 +430,6 @@ watch(
           ><label>Teléfono<input v-model.trim="form.phone" /></label
           ><label class="wide"
             >Dirección<input v-model.trim="form.address" /></label
-          ><label
-            >Límite de crédito<input
-              v-model.number="form.creditLimit"
-              type="number"
-              min="0"
-              step="0.01" /></label
           ><label class="credit-toggle"
             ><input v-model="form.allowCredit" type="checkbox" /><span
               ><strong>Habilitar cuenta corriente</strong
@@ -430,7 +438,12 @@ watch(
                 indicado.</small
               ></span
             ></label
-          >
+          ><label v-if="form.allowCredit"
+            >Límite de crédito<CurrencyInput
+              v-model="form.creditLimit"
+              :min="0"
+              required
+          /></label>
         </div>
         <button class="primary full" :disabled="saving">
           <LoaderCircle v-if="saving" class="spin" :size="16" />{{
@@ -487,11 +500,10 @@ watch(
       <form class="payment-form" @submit.prevent="recordPayment">
         <h3>Registrar entrega de dinero</h3>
         <label
-          >Importe<input
-            v-model.number="paymentAmount"
-            type="number"
-            min="0.01"
-            step="0.01" /></label
+          >Importe<CurrencyInput
+            v-model="paymentAmount"
+            :min="0.01"
+            required /></label
         ><label
           >Descripción<input
             v-model.trim="paymentDescription"

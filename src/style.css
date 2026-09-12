@@ -1677,3 +1677,11 @@ table small,
 .profile-modal { width: min(100%, 540px); }
 .profile-modal form { margin-top: 18px; }
 .profile-modal .error { margin-top: 16px; }
+
+.currency-input {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.currency-input:focus {
+  text-align: left;
+}

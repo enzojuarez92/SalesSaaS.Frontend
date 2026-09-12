@@ -6,7 +6,11 @@ import { download } from "../services/download";
 import { dateTime, number } from "../services/format";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-const props = defineProps<{ productId?: string; productName?: string }>();
+const props = defineProps<{
+  productId?: string;
+  productName?: string;
+  compact?: boolean;
+}>();
 const emit = defineEmits<{ updated: [] }>();
 const tenant = useTenantStore();
 const busy = ref(false),
@@ -105,7 +109,7 @@ watch(
 );
 </script>
 <template>
-  <div class="inventory-tools">
+  <div class="inventory-tools" :class="{ compact: props.compact }">
     <button
       v-if="productId"
       class="secondary"
@@ -114,8 +118,11 @@ watch(
         page = 1;
         ledger();
       "
+      :class="{ 'icon-action': props.compact }"
+      :title="props.compact ? 'Ver Kardex' : undefined"
+      :aria-label="props.compact ? 'Ver Kardex' : undefined"
     >
-      <History :size="16" />Kardex</button
+      <History :size="16" /><span v-if="!props.compact">Kardex</span></button
     ><template v-else
       ><button
         class="secondary"
@@ -303,5 +310,16 @@ watch(
   inset: 0;
   opacity: 0;
   cursor: pointer;
+}
+.inventory-tools.compact {
+  margin: 0;
+}
+.inventory-tools.compact .icon-action {
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  min-width: 31px;
+  padding: 0;
 }
 </style>

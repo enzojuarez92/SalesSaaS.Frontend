@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InventoryTools from "../components/InventoryTools.vue";
+import CurrencyInput from "../components/CurrencyInput.vue";
 import { money } from "../services/format";
 import { computed, reactive, ref, watch } from "vue";
 import {
@@ -457,12 +458,10 @@ watch(
         </label>
         <div class="form-grid">
           <label
-            >Precio de venta<input
-              v-model.number="form.price"
-              type="number"
-              required
-              min="0.01"
-              step="0.01" /></label
+            >Precio de venta<CurrencyInput
+              v-model="form.price"
+              :min="0.01"
+              required /></label
           ><label
             >IVA<select v-model.number="form.vatRate">
               <option :value="21">21%</option>
@@ -470,13 +469,10 @@ watch(
               <option :value="0">0%</option>
             </select></label
           ><label
-            >Costo<input
-              v-model.number="form.cost"
-              type="number"
-              min="0"
-              step="0.01" /></label
+            >Costo<CurrencyInput v-model="form.cost" :min="0" required /></label
           ><label
             >Stock inicial<input
+              class="quantity-input"
               v-model.number="form.stock"
               type="number"
               min="0"
@@ -493,6 +489,7 @@ watch(
             ></label
           ><label
             >Alerta mínima<input
+              class="quantity-input"
               v-model.number="form.minimumStockAlert"
               type="number"
               min="0"
@@ -580,6 +577,7 @@ watch(
             </select></label
           ><label
             >Cantidad<input
+              class="quantity-input"
               v-model.number="adjustment.quantity"
               type="number"
               min="1"
@@ -610,5 +608,33 @@ watch(
 }
 .compact-modal {
   max-width: 30rem;
+}
+.product-modal {
+  width: min(100%, 40rem);
+  max-height: calc(100dvh - 24px);
+  padding: 1.35rem 1.5rem;
+}
+.product-modal form {
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+.product-modal textarea {
+  min-height: 5.25rem;
+}
+.product-modal .quantity-input {
+  height: 3.25rem;
+  padding: 0 0.95rem;
+  line-height: 1.2;
+}
+:deep(.invoice-actions) {
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+}
+:deep(.invoice-actions .inventory-tools) {
+  display: flex;
+  align-items: center;
+  margin: 0;
 }
 </style>
