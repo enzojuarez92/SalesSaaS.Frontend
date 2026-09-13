@@ -126,8 +126,9 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (!to.meta.public && !auth.isAuthenticated) {
+    if (await auth.refresh()) return to.fullPath;
     auth.clear();
-    return { path: "/login", query: { redirect: to.fullPath } };
+    return { path: "/login", query: { redirect: to.fullPath, expired: "1" } };
   }
   if (to.meta.public && auth.isAuthenticated) return "/dashboard";
   if (to.meta.requiresActiveSubscription && auth.tenantId) {

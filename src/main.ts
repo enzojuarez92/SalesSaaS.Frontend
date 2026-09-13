@@ -20,14 +20,13 @@ function expire() {
   void router.replace({ path: "/login", query: { expired: "1" } });
 }
 window.addEventListener("auth:expired", expire);
+window.addEventListener("auth:refreshed", (event) => {
+  useAuthStore().setSession((event as CustomEvent).detail);
+});
 window.addEventListener("storage", (event) => {
   if (event.key === SESSION_KEY) {
     useTenantStore().reset();
     window.location.reload();
   }
 });
-setInterval(() => {
-  const auth = useAuthStore();
-  if (auth.session && !auth.isAuthenticated) expire();
-}, 15000);
 app.mount("#app");

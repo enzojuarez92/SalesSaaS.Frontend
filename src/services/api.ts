@@ -1,12 +1,42 @@
-import axios from "axios";
-import { readSession } from "./session";
+import axios, { type InternalAxiosRequestConfig } from "axios";
+import type { AuthResponse } from "../types/api";
+import { readSession, writeSession } from "./session";
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
   timeout: 20000,
 });
-api.interceptors.request.use((config) => {
+type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
+const refreshBeforeExpirationMs = 60_000;
+let refreshInFlight: Promise<AuthResponse | null> | null = null;
+let expirationNotified = false;
+
+async function refreshSession(): Promise<AuthResponse | null> {
+  if (refreshInFlight) return refreshInFlight;
+  const session = readSession();
+  if (!session) return null;
+  refreshInFlight = api
+    .post<AuthResponse>("/auth/refresh", { refreshToken: session.refreshToken })
+    .then(({ data }) => {
+      writeSession(data);
+      expirationNotified = false;
+      window.dispatchEvent(new CustomEvent<AuthResponse>("auth:refreshed", { detail: data }));
+      return data;
+    })
+    .catch(() => null)
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+function notifyExpiration() {
+  if (expirationNotified) return;
+  expirationNotified = true;
+  window.dispatchEvent(new Event("auth:expired"));
+}
+
+api.interceptors.request.use(async (config) => {
   if (!config.url?.startsWith("/auth/")) {
-    const session = readSession();
+    let session = readSession();
+    if (session && Date.parse(session.expiresAtUtc) - Date.now() <= refreshBeforeExpirationMs)
+      session = (await refreshSession()) || session;
     if (session) {
       config.headers.Authorization = `Bearer ${session.accessToken}`;
       const warehouseId = sessionStorage.getItem(
@@ -25,12 +55,14 @@ export function notify(message: string, error = false) {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (
-      error.response?.status === 401 &&
-      !error.config?.url?.startsWith("/auth/")
-    )
-      window.dispatchEvent(new Event("auth:expired"));
+  async (error) => {
+    const request = error.config as RetriableRequest | undefined;
+    if (error.response?.status === 401 && request && !request._retry && !request.url?.startsWith("/auth/")) {
+      request._retry = true;
+      const session = await refreshSession();
+      if (session) return api.request(request);
+      notifyExpiration();
+    }
     return Promise.reject(error);
   },
 );

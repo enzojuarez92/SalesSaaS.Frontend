@@ -15,8 +15,13 @@ export function validSession(value: unknown): value is AuthResponse {
       (k) =>
         typeof s[k as keyof AuthResponse] === "string" &&
         !!s[k as keyof AuthResponse],
-    ) && Date.parse(s.expiresAtUtc) > Date.now()
+    ) && Date.parse(s.refreshTokenExpiresAtUtc) > Date.now()
   );
+}
+export const hasValidAccessToken = (session: AuthResponse | null) =>
+  !!session && Date.parse(session.expiresAtUtc) > Date.now();
+export function writeSession(session: AuthResponse) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 }
 export function readSession(): AuthResponse | null {
   try {
