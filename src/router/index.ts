@@ -67,6 +67,7 @@ export const router = createRouter({
           component: () => import("../views/AfipView.vue"),
           meta: { requiresActiveSubscription: true },
         },
+        { path: "facturacion-arca", redirect: "/afip" },
         {
           path: "productos",
           name: "products",

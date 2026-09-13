@@ -56,10 +56,8 @@ const discountPercent = ref(0),
   error = ref(""),
   success = ref("");
 const invoiceId = ref(""),
-  issuedOrderId = ref(""),
   invoiceNumber = ref(""),
   authorization = ref<AfipAuthorization | null>(null),
-  showAfip = ref(false),
   showSuccess = ref(false),
   showCustomer = ref(false),
   showPayment = ref(false),
@@ -431,7 +429,6 @@ async function createSale() {
       throw new Error(
         "La API no devolvió el identificador de la venta. Verificá Reportes antes de intentar nuevamente.",
       );
-    issuedOrderId.value = orderId;
     issuedTotal.value = saleTotal;
     saleSummary.value = `Venta registrada por ${money(saleTotal)} con ${paymentMethodLabel(payment.value).toLowerCase()}.`;
     success.value = saleSummary.value;
@@ -465,9 +462,9 @@ async function createSale() {
         errors: invoice.errors,
       };
       if (invoice.errors)
-        error.value = `La venta fue registrada, pero ARCA no pudo autorizar el comprobante. ${invoice.errors}`;
+        error.value = "Venta registrada. El comprobante quedó Pendiente de ARCA; podés reintentar la emisión desde Facturación ARCA.";
     } catch (cause) {
-      error.value = `La venta ${orderId} ya está guardada. No se pudo completar la emisión electrónica: ${apiError(cause)}. No vuelvas a cobrar esta venta.`;
+      error.value = `La venta ${orderId} ya está guardada. El comprobante quedó Pendiente de ARCA; reintentá la emisión desde Facturación ARCA.`;
     }
     showSuccess.value = true;
     await loadCatalogs();
@@ -475,29 +472,6 @@ async function createSale() {
     error.value = apiError(cause);
     await checkCash();
   } finally {
-    saving.value = false;
-  }
-}
-async function authorize() {
-  if (!issuedOrderId.value) return;
-  saving.value = true;
-  error.value = "";
-  try {
-    const { data: invoice } = await api.post<{
-      invoiceId: string; status: string; cae: string | null; caeExpirationDate: string | null; qrUrl: string | null; errors: string | null;
-    }>("/invoices/issue", {
-        tenantId: auth.tenantId,
-        orderId: issuedOrderId.value,
-        documentType: documentType.value,
-      },
-    );
-    invoiceId.value = invoice.invoiceId;
-    authorization.value = { invoiceId: invoice.invoiceId, isApproved: invoice.status === "Issued" && Boolean(invoice.cae), cae: invoice.cae, caeExpirationDate: invoice.caeExpirationDate, barCode: invoice.qrUrl, errors: invoice.errors };
-    if (invoice.errors) error.value = invoice.errors;
-  } catch (cause) {
-    error.value = apiError(cause);
-  } finally {
-    showAfip.value = true;
     saving.value = false;
   }
 }
@@ -747,15 +721,7 @@ async function saveQuote() {
         :disabled="saving || !cart.length"
         @click="saveQuote"
       >
-        Guardar presupuesto</button
-      ><button
-        v-if="invoiceId"
-        class="secondary full"
-        :disabled="saving"
-        @click="authorize"
-      >
-        <CheckCircle2 :size="17" />Autorizar en ARCA
-      </button>
+        Guardar presupuesto</button>
     </section>
   </div>
   <div
@@ -885,44 +851,6 @@ async function saveQuote() {
       <button class="primary full" @click="showSuccess = false">
         Finalizar
       </button>
-    </section>
-  </div>
-  <div v-if="showAfip" class="modal-backdrop">
-    <section class="modal">
-      <button class="icon-button modal-close" @click="showAfip = false">
-        <X />
-      </button>
-      <div
-        class="modal-icon"
-        :class="authorization?.isApproved ? 'approved' : 'rejected'"
-      >
-        <CheckCircle2 v-if="authorization?.isApproved" /><ReceiptText v-else />
-      </div>
-      <h2>
-        {{
-          authorization?.isApproved ? "Factura autorizada" : "Resultado de ARCA"
-        }}
-      </h2>
-      <p>
-        {{
-          authorization?.isApproved
-            ? "El comprobante fue autorizado correctamente."
-            : authorization?.errors ||
-              error ||
-              "No pudimos obtener una autorización."
-        }}
-      </p>
-      <dl v-if="authorization?.isApproved" class="authorization-data">
-        <div>
-          <dt>CAE</dt>
-          <dd>{{ authorization.cae }}</dd>
-        </div>
-        <div>
-          <dt>Vencimiento</dt>
-          <dd>{{ authorization.caeExpirationDate }}</dd>
-        </div>
-      </dl>
-      <button class="primary full" @click="showAfip = false">Entendido</button>
     </section>
   </div>
 </template>
