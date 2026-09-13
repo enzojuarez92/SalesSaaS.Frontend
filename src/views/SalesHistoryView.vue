@@ -12,7 +12,11 @@ import type { PagedResult, SaleDetail, SalesHistoryRow } from "../types/api";
 
 const auth = useAuthStore(), tenant = useTenantStore();
 const rows = ref<SalesHistoryRow[]>([]), selected = ref<SaleDetail | null>(null), result = ref<PagedResult<SalesHistoryRow> | null>(null);
-const loading = ref(false), detailLoading = ref(false), paymentMethod = ref<number | "">(""), sellerId = ref(""), from = ref(""), to = ref("");
+const today = (() => {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+})();
+const loading = ref(false), detailLoading = ref(false), paymentMethod = ref<number | "">(""), sellerId = ref(""), from = ref(today), to = ref(today);
 const page = ref(1);
 const paymentTotals = ref<Array<{ paymentMethod: number; total: number }>>([]);
 const sellers = ref<Array<{ id: string; name: string }>>([]);
