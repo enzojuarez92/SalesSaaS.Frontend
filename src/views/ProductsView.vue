@@ -2,7 +2,7 @@
 import InventoryTools from "../components/InventoryTools.vue";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { money } from "../services/format";
-import { computed, reactive, ref, watch } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -37,6 +37,7 @@ const products = ref<Product[]>([]),
   showModal = ref(false),
   showAdjustment = ref(false),
   showCategoryModal = ref(false),
+  skuInput = ref<HTMLInputElement | null>(null),
   editingId = ref<string | null>(null),
   adjusting = ref<Product | null>(null);
 const form = reactive({
@@ -131,6 +132,12 @@ function open(product?: Product) {
   error.value = "";
   clearFieldErrors();
   showModal.value = true;
+  if (!product) void nextTick(() => skuInput.value?.focus());
+}
+function submitBarcodeSearch() {
+  if (!search.value.trim()) return;
+  page.value = 1;
+  void load();
 }
 function clearFieldErrors() {
   Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
@@ -302,11 +309,12 @@ watch(
   <InventoryTools v-if="canManage" @updated="load" />
   <section class="panel inventory-panel">
     <div class="inventory-toolbar">
-      <label class="search-input"
+      <label class="search-input product-search"
         ><Search :size="17" /><input
           v-model="search"
-          placeholder="Buscar por SKU o nombre" /></label
-      ><select v-model="categoryFilter" aria-label="Filtrar por categoría">
+          placeholder="Buscar por SKU, código de barras o nombre"
+          @keydown.enter.prevent="submitBarcodeSearch" /></label
+      ><select class="product-filter" v-model="categoryFilter" aria-label="Filtrar por categoría">
         <option value="">Todas las categorías</option>
         <option
           v-for="category in categories"
@@ -315,7 +323,7 @@ watch(
         >
           {{ category.name }}
         </option></select
-      ><select v-model="stockFilter" aria-label="Filtrar por stock">
+      ><select class="product-filter" v-model="stockFilter" aria-label="Filtrar por stock">
         <option value="">Todo el stock</option>
         <option value="available">Disponible</option>
         <option value="low">Stock bajo</option>
@@ -432,8 +440,10 @@ watch(
         <div class="form-grid">
           <label
             >SKU<input
+              ref="skuInput"
               v-model.trim="form.sku"
               maxlength="50"
+              autofocus
               :aria-invalid="!!fieldErrors.sku"
               @input="clearFieldError('sku')" /><small
               v-if="fieldErrors.sku"

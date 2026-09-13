@@ -342,6 +342,19 @@ function createdId(response: { data?: { id?: string }; headers?: unknown }) {
     ""
   );
 }
+function handleBarcodeSearch() {
+  const scanned = productSearch.value.trim().toLocaleLowerCase();
+  if (!scanned) return;
+  const match = products.value.find(
+    (product) => product.sku.trim().toLocaleLowerCase() === scanned,
+  );
+  if (match) {
+    add(match);
+    productSearch.value = "";
+    return;
+  }
+  error.value = "No encontramos un producto con el código escaneado.";
+}
 async function openPayment() {
   if (!cart.value.length || !tenant.activeWarehouseId) {
     error.value = "Elegí un depósito y al menos un producto para continuar.";
@@ -573,7 +586,8 @@ async function saveQuote() {
       <label class="search-input"
         ><Search :size="17" /><input
           v-model="productSearch"
-          placeholder="Buscar por nombre o SKU"
+          placeholder="Buscar por nombre, SKU o código de barras"
+          @keydown.enter.prevent="handleBarcodeSearch"
       /></label>
       <div class="category-chips">
         <button

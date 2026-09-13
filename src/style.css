@@ -1717,3 +1717,8 @@ textarea[aria-invalid="true"] {
 .payment-methods button span strong { font-weight: 650; }
 .payment-methods button span small { color: #64748b; font-size: 11px; }
 .payment-methods button:disabled { cursor: not-allowed; opacity: .58; }
+
+/* Product lookup leaves room for a barcode or a full product name. */
+.inventory-toolbar .product-search { flex: 1 1 520px; max-width: none; min-width: 300px; }
+.inventory-toolbar .product-filter { flex: 0 1 220px; min-width: 170px; }
+@media (max-width: 800px) { .inventory-toolbar .product-search, .inventory-toolbar .product-filter { width: 100%; min-width: 0; } }
