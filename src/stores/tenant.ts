@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 import { useAuthStore } from "./auth";
 import { api, apiError } from "../services/api";
 import type { Warehouse, Subscription } from "../types/api";
+import type { PrintFormat } from "../services/receiptPrint";
 export const useTenantStore = defineStore("tenant", () => {
   const auth = useAuthStore();
   const activeTenantId = computed(() => auth.tenantId);
@@ -21,6 +22,8 @@ export const useTenantStore = defineStore("tenant", () => {
     { flush: "sync" },
   );
   const businessName = ref("Mi negocio");
+  const businessTaxId = ref("");
+  const printFormat = ref<PrintFormat>("a4");
   const subscription = ref<Subscription | null>(null);
   const error = ref("");
   let generation = 0;
@@ -29,6 +32,8 @@ export const useTenantStore = defineStore("tenant", () => {
     warehouses.value = [];
     activeWarehouseId.value = "";
     businessName.value = "Mi negocio";
+    businessTaxId.value = "";
+    printFormat.value = "a4";
     subscription.value = null;
     error.value = "";
   }
@@ -50,7 +55,7 @@ export const useTenantStore = defineStore("tenant", () => {
         params,
       }),
       api.get<Warehouse[]>("/warehouses", { params }),
-      api.get<{ id: string; name: string }>("/tenants/current"),
+      api.get<{ id: string; name: string; taxId: string; printFormat: PrintFormat }>("/tenants/current"),
     ]);
     if (current !== generation) return;
     const [billing, locations, currentTenant] = results;
@@ -59,8 +64,11 @@ export const useTenantStore = defineStore("tenant", () => {
     if (locations.status === "fulfilled")
       warehouses.value = locations.value.data.filter((w) => w.isActive);
     else error.value = apiError(locations.reason);
-    if (currentTenant.status === "fulfilled")
+    if (currentTenant.status === "fulfilled") {
       businessName.value = currentTenant.value.data.name;
+      businessTaxId.value = currentTenant.value.data.taxId;
+      printFormat.value = currentTenant.value.data.printFormat;
+    }
     activeWarehouseId.value =
       warehouses.value.find((w) => w.id === savedWarehouse)?.id ||
       warehouses.value.find((w) => w.code === "MAIN")?.id ||
@@ -72,6 +80,8 @@ export const useTenantStore = defineStore("tenant", () => {
     warehouses,
     activeWarehouseId,
     businessName,
+    businessTaxId,
+    printFormat,
     subscription,
     error,
     load,

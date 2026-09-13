@@ -6,6 +6,7 @@ import { api, apiError, notify } from "../services/api";
 import { money } from "../services/format";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
+import { getPrintBusiness, printReceipt } from "../services/receiptPrint";
 import TablePaginator from "../components/TablePaginator.vue";
 import type { PagedResult, SaleDetail, SalesHistoryRow } from "../types/api";
 
@@ -65,22 +66,23 @@ function applyFilters() {
   page.value = 1;
   void load();
 }
-function escapeHtml(value: unknown) {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
-  })[character] ?? character);
-}
 function printTicket(sale: SaleDetail) {
-  const lines = sale.items.map(item => `<tr><td>${escapeHtml(item.product)}</td><td>${escapeHtml(item.quantity)}</td><td>${escapeHtml(money(item.unitPrice))}</td><td>${escapeHtml(money(item.subtotal))}</td></tr>`).join("");
-  const documentHtml = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(sale.receiptNumber)}</title><style>@page{margin:16mm}body{font-family:Arial,sans-serif;margin:0;color:#172033;font-size:13px}h1{margin:0 0 16px;font-size:22px}p{line-height:1.6}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:9px 8px;border-bottom:1px solid #dbe2ea;text-align:left}th{color:#475569;font-size:11px;text-transform:uppercase}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total{font-size:18px;font-weight:700;text-align:right;margin-top:20px}</style></head><body><h1>Comprobante de venta</h1><p><b>${escapeHtml(sale.receiptNumber)}</b><br>${escapeHtml(new Date(sale.date).toLocaleString("es-AR"))}<br>Cliente: ${escapeHtml(sale.customer)} · ${escapeHtml(sale.customerDocument)}<br>Vendedor: ${escapeHtml(sale.seller)}<br>Pago: ${escapeHtml(paymentMethodLabel(sale.paymentMethod))}</p><table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${lines}</tbody></table><p class="total">Total: ${escapeHtml(money(sale.total))}</p><script>window.addEventListener("load",()=>{window.focus();window.print();});<\/script></body></html>`;
-  const url = URL.createObjectURL(new Blob([documentHtml], { type: "text/html;charset=utf-8" }));
-  const ticket = window.open(url, "_blank", "noopener,noreferrer");
-  if (!ticket) {
-    URL.revokeObjectURL(url);
-    notify("El navegador bloqueó la ventana de impresión.", true);
-    return;
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  const business = getPrintBusiness(auth.tenantId);
+  if (!printReceipt({
+    tenantId: auth.tenantId,
+    printFormat: tenant.printFormat,
+    businessName: business.name || tenant.businessName,
+    businessTaxId: business.taxId || tenant.businessTaxId,
+    receiptNumber: sale.receiptNumber,
+    date: sale.date,
+    customer: sale.customer,
+    customerDocument: sale.customerDocument,
+    seller: sale.seller,
+    paymentMethod: paymentMethodLabel(sale.paymentMethod),
+    total: sale.total,
+    items: sale.items,
+    fiscalLabel: "DOCUMENTO NO FISCAL",
+  })) notify("El navegador bloqueó la ventana de impresión.", true);
 }
 watch(() => auth.tenantId, () => { void load(); void loadSellers(); }, { immediate: true });
 watch(() => tenant.activeWarehouseId, load);

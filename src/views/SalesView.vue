@@ -26,6 +26,7 @@ import {
 } from "lucide-vue-next";
 import { paymentMethodLabel, paymentMethodOptions } from "../constants/paymentMethods";
 import { api, apiError, notify } from "../services/api";
+import { getPrintBusiness, printReceipt as openPrintReceipt, type ReceiptPrintData } from "../services/receiptPrint";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import { useRouter } from "vue-router";
@@ -72,6 +73,7 @@ const issuedTotal = ref(0);
 const saleSummary = ref("");
 const isInternalTicket = ref(true);
 const activeQuoteId = ref("");
+const issuedReceipt = ref<ReceiptPrintData | null>(null);
 
 watch(error, (message) => {
   if (!message) return;
@@ -345,23 +347,10 @@ async function selectCustomer(customer: Customer) {
     error.value = apiError(cause);
   }
 }
-async function printReceipt() {
-  if (!invoiceId.value || !auth.tenantId) return;
-  error.value = "";
-  const printWindow = window.open("", "_blank");
-  try {
-    const { data } = await api.get(`/invoices/${invoiceId.value}/pdf`, {
-      params: { tenantId: auth.tenantId },
-      responseType: "blob",
-    });
-    const url = URL.createObjectURL(data);
-    if (printWindow) printWindow.location.href = url;
-    else window.open(url, "_blank", "noopener");
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  } catch (cause) {
-    printWindow?.close();
-    error.value = apiError(cause);
-  }
+function printReceipt() {
+  if (!issuedReceipt.value) return;
+  if (!openPrintReceipt(issuedReceipt.value))
+    error.value = "El navegador bloqueó la ventana de impresión.";
 }
 function createdId(response: { data?: { id?: string }; headers?: unknown }) {
   const headers = response.headers as
@@ -429,6 +418,7 @@ async function createSale() {
   authorization.value = null;
   invoiceId.value = "";
   invoiceNumber.value = "";
+  issuedReceipt.value = null;
   const saleTotal = total.value;
   try {
     const payload = {
@@ -443,6 +433,9 @@ async function createSale() {
         quantity: item.quantity,
       })),
     };
+    const receiptItems = cart.value.map(item => ({ product: item.name, quantity: item.quantity, unitPrice: item.price, subtotal: item.price * item.quantity }));
+    const receiptCustomer = selectedCustomer.value!;
+    const receiptDate = new Date().toISOString();
     const storageKey = `salessaas.pending-sale.${auth.tenantId}.${tenant.activeWarehouseId}`;
     const serialized = JSON.stringify(payload);
     let pending: { payload: string; id: string } | null = null;
@@ -501,6 +494,22 @@ async function createSale() {
     } catch (cause) {
       error.value = `La venta ${orderId} ya está guardada. El comprobante quedó Pendiente de ARCA; reintentá la emisión desde Facturación ARCA.`;
     }
+    const business = getPrintBusiness(auth.tenantId);
+    issuedReceipt.value = {
+      tenantId: auth.tenantId,
+      printFormat: tenant.printFormat,
+      businessName: business.name || tenant.businessName,
+      businessTaxId: business.taxId || tenant.businessTaxId,
+      receiptNumber: invoiceNumber.value || orderId,
+      date: receiptDate,
+      customer: receiptCustomer.name,
+      customerDocument: `${receiptCustomer.documentType}: ${receiptCustomer.documentNumber}`,
+      seller: auth.user?.email,
+      paymentMethod: paymentMethodLabel(payment.value),
+      total: saleTotal,
+      items: receiptItems,
+      fiscalLabel: authorization.value?.isApproved ? "COMPROBANTE ELECTRÓNICO" : "DOCUMENTO NO FISCAL",
+    };
     showSuccess.value = true;
     await loadCatalogs();
   } catch (cause) {
@@ -889,7 +898,7 @@ async function saveQuote() {
         <button
           class="receipt-icon"
           title="Abrir comprobante para imprimir"
-          :disabled="!invoiceId || saving"
+          :disabled="!issuedReceipt || saving"
           aria-label="Abrir comprobante para imprimir"
           @click="printReceipt"
         >

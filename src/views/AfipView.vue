@@ -5,9 +5,11 @@ import { CheckCircle2, Clock3, Download, ExternalLink, FileText, LoaderCircle, Q
 import { api, apiError } from "../services/api";
 import TablePaginator from "../components/TablePaginator.vue";
 import { useAuthStore } from "../stores/auth";
+import { useTenantStore } from "../stores/tenant";
+import { getPrintBusiness, printReceipt } from "../services/receiptPrint";
 import type { Invoice, PagedResult } from "../types/api";
 
-const auth = useAuthStore();
+const auth = useAuthStore(), tenant = useTenantStore();
 const invoices = ref<Invoice[]>([]);
 const loading = ref(false);
 const retryingId = ref("");
@@ -60,7 +62,7 @@ async function retryEmission(invoice: Invoice) {
     retryingId.value = "";
   }
 }
-function printInvoice(invoice: Invoice) { const fiscalState = invoice.cae ? `CAE: ${invoice.cae}` : invoice.afipResult === "Internal" ? "Ticket interno / no fiscal" : "Pendiente de autorización por ARCA"; const popup = window.open("", "_blank", "noopener,noreferrer"); if (!popup) return; popup.document.write(`<title>Comprobante ${invoice.number}</title><main style="font-family:system-ui;padding:32px;color:#0f172a"><h1>Comprobante ${invoice.number}</h1><p>Cliente: ${invoice.customerName}</p><p>Emitido: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}</p><h2>Total: ${money(invoice.totalAmount)}</h2><p>${fiscalState}</p></main>`); popup.document.close(); popup.print(); }
+function printInvoice(invoice: Invoice) { const business = getPrintBusiness(auth.tenantId); const fiscalState = invoice.cae ? `CAE: ${invoice.cae}` : invoice.afipResult === "Internal" ? "DOCUMENTO NO FISCAL" : "PENDIENTE DE ARCA"; if (!printReceipt({ tenantId: auth.tenantId, printFormat: tenant.printFormat, businessName: business.name || tenant.businessName, businessTaxId: business.taxId || tenant.businessTaxId, receiptNumber: invoice.number, date: invoice.issuedAtUtc, customer: invoice.customerName, paymentMethod: "Según comprobante", total: invoice.totalAmount, items: [{ product: "Comprobante fiscal", quantity: 1, unitPrice: invoice.totalAmount, subtotal: invoice.totalAmount }], fiscalLabel: fiscalState })) error.value = "El navegador bloqueó la ventana de impresión."; }
 function download(invoice: Invoice) { const fiscalState = invoice.cae ? `CAE: ${invoice.cae}` : invoice.afipResult === "Internal" ? "Ticket interno / no fiscal" : "Pendiente de ARCA"; const body = `Comprobante ${invoice.number}\nCliente: ${invoice.customerName}\nFecha: ${new Date(invoice.issuedAtUtc).toLocaleString("es-AR")}\nTotal: ${money(invoice.totalAmount)}\n${fiscalState}`; const url = URL.createObjectURL(new Blob([body], { type: "text/plain;charset=utf-8" })); const link = document.createElement("a"); link.href = url; link.download = `${invoice.number}.txt`; link.click(); URL.revokeObjectURL(url); }
 async function creditNote(invoice: Invoice) { if (!window.confirm(`¿Emitir una nota de crédito para ${invoice.number}?`)) return; const type = invoice.afipVoucherType === 1 ? 4 : invoice.afipVoucherType === 11 ? 6 : 5; try { await api.post("/invoices/issue", { tenantId: auth.tenantId, orderId: invoice.orderId, documentType: type, associatedInvoiceId: invoice.id }); await load(); } catch (cause) { error.value = apiError(cause); } }
 watch([() => auth.tenantId, filter, customerFilter, dateFrom, dateTo], () => { page.value = 1; void load(); }, { immediate: true });
