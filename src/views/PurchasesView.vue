@@ -1,359 +1,73 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import {
-  Plus,
-  PackageCheck,
-  LoaderCircle,
-  Trash2,
-  Truck,
-  Pencil,
-  ScrollText,
-  Save,
-  X,
-} from "lucide-vue-next";
+import { computed, reactive, ref, watch } from "vue";
+import { Ban, Check, Eye, FilePlus2, LoaderCircle, PackageCheck, Pencil, Plus, ReceiptText, Save, ScrollText, X } from "lucide-vue-next";
 import { api, apiError, notify } from "../services/api";
-import { money, dateTime } from "../services/format";
+import { dateTime, money } from "../services/format";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-import type { Product, PagedResult, Supplier } from "../types/api";
-const auth = useAuthStore(),
-  tenant = useTenantStore();
-type Purchase = {
-  id: string;
-  supplierId: string;
-  status: string;
-  totalAmount: number;
-  createdAtUtc: string;
-  invoiced: boolean;
-};
-const tab = ref("orders"),
-  busy = ref(false),
-  suppliers = ref<Supplier[]>([]),
-  products = ref<Product[]>([]),
-  orders = ref<Purchase[]>([]),
-  supplierId = ref(""),
-  editingSupplier = ref<Supplier | null>(null),
-  showSupplierModal = ref(false),
-  selectCreatedSupplier = ref(false);
-const supplier = reactive({
-  legalName: "",
-  taxId: "",
-  taxCondition: "Responsable Inscripto",
-  email: "",
-  phone: "",
-  address: "",
-  isActive: true,
-});
-const lines = ref<
-  Array<{ productId: string; quantity: number; unitCost: number }>
->([{ productId: "", quantity: 1, unitCost: 0 }]);
-const total = computed(() =>
-  lines.value.reduce((a, l) => a + l.quantity * l.unitCost, 0),
-);
-const invoice = reactive({ orderId: "", number: "" });
-const statement = ref<
-  Array<{
-    id: string;
-    amount: number;
-    isDebit: boolean;
-    description: string;
-    occurredAtUtc: string;
-  }>
->([]);
-async function run(fn: () => Promise<unknown>, successMessage?: string) {
-  if (busy.value) return;
-  busy.value = true;
-  try {
-    await fn();
-    if (successMessage) notify(successMessage);
-  } catch (e) {
-    notify(apiError(e), true);
-  } finally {
-    busy.value = false;
-  }
-}
+import type { PagedResult, Product, Supplier } from "../types/api";
+
+type PurchaseLine = { productId: string; quantity: number; unitCost: number };
+type Purchase = { id: string; supplierId: string; status: string; totalAmount: number; createdAtUtc: string; createdByUserId?: string | null; invoiced: boolean };
+type PurchaseDetail = Purchase & { items: Array<{ productId: string; product: string; sku: string; quantity: number; unitCost: number; totalAmount: number }> };
+type PurchaseInvoice = { id: string; purchaseOrderId: string; supplierId: string; supplier: string; number: string; totalAmount: number; issuedAtUtc: string };
+type PurchaseInvoiceDetail = PurchaseInvoice & { items: PurchaseDetail["items"] };
+
+const auth = useAuthStore(), tenant = useTenantStore();
+const tab = ref<"orders" | "invoices" | "suppliers">("orders");
+const busy = ref(false), orders = ref<Purchase[]>([]), invoices = ref<PurchaseInvoice[]>([]), suppliers = ref<Supplier[]>([]), products = ref<Product[]>([]);
+const showOrderModal = ref(false), showSupplierModal = ref(false), showInvoiceModal = ref(false), selectedOrder = ref<PurchaseDetail | null>(null), selectedInvoice = ref<PurchaseInvoiceDetail | null>(null);
+const supplierId = ref(""), editingSupplier = ref<Supplier | null>(null), selectCreatedSupplier = ref(false), invoiceOrder = ref<Purchase | null>(null), invoiceNumber = ref("");
+const lines = ref<PurchaseLine[]>([{ productId: "", quantity: 1, unitCost: 0 }]);
+const supplier = reactive({ legalName: "", taxId: "", taxCondition: "Responsable Inscripto", email: "", phone: "", address: "", isActive: true });
+const statement = ref<Array<{ id: string; amount: number; isDebit: boolean; description: string; occurredAtUtc: string }>>([]);
+const isAdmin = computed(() => ["Owner", "Admin"].includes(auth.user?.role || ""));
+const total = computed(() => lines.value.reduce((sum, line) => sum + line.quantity * line.unitCost, 0));
+const activeSuppliers = computed(() => suppliers.value.filter(item => item.isActive));
+const supplierName = (id: string) => suppliers.value.find(item => item.id === id)?.legalName || "Proveedor eliminado";
+const statusLabel = (status: string) => ({ Draft: "Pendiente de recepción", PendingAuthorization: "Pendiente de autorización", PendingReceipt: "Pendiente de recepción", Received: "Recibida", Cancelled: "Anulada" })[status] || status;
+const statusClass = (status: string) => status === "Received" ? "success-status" : status === "Cancelled" ? "danger" : "afip-status pending";
+
+async function run(work: () => Promise<void>, message?: string) { if (busy.value) return; busy.value = true; try { await work(); if (message) notify(message); } catch (cause) { notify(apiError(cause), true); } finally { busy.value = false; } }
 async function load() {
-  const params = {
-    tenantId: auth.tenantId,
-    warehouseId: tenant.activeWarehouseId,
-    pageSize: 100,
-  };
-  const [o, s, p] = await Promise.all([
-    api.get<Purchase[]>("/purchases/orders"),
-    api.get<Supplier[]>("/suppliers", { params }),
-    api.get<PagedResult<Product>>("/products", { params }),
-  ]);
-  orders.value = o.data;
-  suppliers.value = s.data;
-  products.value = p.data.items;
+  if (!auth.tenantId) return;
+  try {
+    const params = { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId, pageSize: 100 };
+    const [orderResponse, invoiceResponse, supplierResponse, productResponse] = await Promise.all([api.get<Purchase[]>("/purchases/orders"), api.get<PurchaseInvoice[]>("/purchases/invoices"), api.get<Supplier[]>("/suppliers", { params }), api.get<PagedResult<Product>>("/products", { params })]);
+    orders.value = orderResponse.data; invoices.value = invoiceResponse.data; suppliers.value = supplierResponse.data; products.value = productResponse.data.items;
+  } catch (cause) { notify(apiError(cause), true); }
 }
-async function create() {
-  await run(async () => {
-    await api.post("/purchases/orders", {
-      tenantId: auth.tenantId,
-      warehouseId: tenant.activeWarehouseId,
-      supplierId: supplierId.value,
-      items: lines.value,
-    });
-    lines.value = [{ productId: "", quantity: 1, unitCost: 0 }];
-    await load();
-  }, "Orden de compra guardada.");
-}
-async function receive(order: Purchase) {
-  if (
-    !window.confirm(
-      "¿Confirmás que recibiste todos los productos? Esta acción aumenta el stock de la sucursal activa.",
-    )
-  )
-    return;
-  await run(async () => {
-    await api.post(`/purchases/orders/${order.id}/receive`, {
-      tenantId: auth.tenantId,
-      purchaseOrderId: order.id,
-    });
-    await load();
-  }, "Mercadería recibida y stock actualizado.");
-}
-async function createSupplier() {
-  const isEditing = Boolean(editingSupplier.value);
-  await run(async () => {
-    let createdId = "";
-    if (editingSupplier.value) await api.put(`/suppliers/${editingSupplier.value.id}`, { tenantId: auth.tenantId, id: editingSupplier.value.id, ...supplier });
-    else createdId = (await api.post<{ id: string }>("/suppliers", { tenantId: auth.tenantId, ...supplier })).data.id;
-    resetSupplier();
-    await load();
-    if (selectCreatedSupplier.value && createdId) supplierId.value = createdId;
-    showSupplierModal.value = false;
-    selectCreatedSupplier.value = false;
-  }, isEditing ? "Proveedor actualizado." : "Proveedor creado.");
-}
-function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; supplier.legalName = target?.legalName || ""; supplier.taxId = target?.taxId || ""; supplier.taxCondition = target?.taxCondition || "Responsable Inscripto"; supplier.email = target?.email || ""; supplier.phone = target?.phone || ""; supplier.address = target?.address || ""; supplier.isActive = target?.isActive ?? true; }
+function openOrder() { supplierId.value = ""; lines.value = [{ productId: "", quantity: 1, unitCost: 0 }]; showOrderModal.value = true; }
+async function createOrder() { if (!supplierId.value || lines.value.some(line => !line.productId || line.quantity < 1)) { notify("Seleccioná un proveedor y completá al menos una línea válida.", true); return; } await run(async () => { await api.post("/purchases/orders", { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId, supplierId: supplierId.value, items: lines.value }); showOrderModal.value = false; await load(); }, isAdmin.value ? "Orden creada y pendiente de recepción." : "Orden creada y pendiente de autorización."); }
+async function viewOrder(order: Purchase) { try { selectedOrder.value = (await api.get<PurchaseDetail>(`/purchases/orders/${order.id}`)).data; } catch (cause) { notify(apiError(cause), true); } }
+async function authorize(order: Purchase) { await run(async () => { await api.post(`/purchases/orders/${order.id}/authorize`, { tenantId: auth.tenantId, purchaseOrderId: order.id }); await load(); }, "Orden autorizada y pendiente de recepción."); }
+async function cancel(order: Purchase) { await run(async () => { await api.post(`/purchases/orders/${order.id}/cancel`, { tenantId: auth.tenantId, purchaseOrderId: order.id }); await load(); }, "Orden anulada."); }
+async function receive(order: Purchase) { await run(async () => { await api.post(`/purchases/orders/${order.id}/receive`, { tenantId: auth.tenantId, purchaseOrderId: order.id }); await load(); }, "Mercadería recibida y stock actualizado."); }
+function openInvoice(order: Purchase) { invoiceOrder.value = order; invoiceNumber.value = ""; showInvoiceModal.value = true; }
+async function registerInvoice() { if (!invoiceOrder.value || !invoiceNumber.value.trim()) { notify("Ingresá el número de factura del proveedor.", true); return; } await run(async () => { await api.post("/purchases/invoices", { tenantId: auth.tenantId, purchaseOrderId: invoiceOrder.value!.id, number: invoiceNumber.value.trim() }); showInvoiceModal.value = false; invoiceOrder.value = null; await load(); }, "Factura de compra registrada."); }
+async function viewInvoice(invoice: PurchaseInvoice) { try { selectedInvoice.value = (await api.get<PurchaseInvoiceDetail>(`/purchases/invoices/${invoice.id}`)).data; } catch (cause) { notify(apiError(cause), true); } }
+function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; Object.assign(supplier, { legalName: target?.legalName || "", taxId: target?.taxId || "", taxCondition: target?.taxCondition || "Responsable Inscripto", email: target?.email || "", phone: target?.phone || "", address: target?.address || "", isActive: target?.isActive ?? true }); }
 function openSupplier(target?: Supplier, assignAfterCreate = false) { resetSupplier(target); selectCreatedSupplier.value = !target && assignAfterCreate; showSupplierModal.value = true; }
-async function viewStatement(target: Supplier) { await run(async () => { statement.value = (await api.get(`/suppliers/${target.id}/account`, { params: { tenantId: auth.tenantId } })).data; }, undefined); }
-async function invoicePurchase() {
-  await run(async () => {
-    await api.post("/purchases/invoices", {
-      tenantId: auth.tenantId,
-      purchaseOrderId: invoice.orderId,
-      number: invoice.number,
-    });
-    invoice.orderId = "";
-    invoice.number = "";
-    await load();
-  }, "Factura de compra registrada.");
-}
-onMounted(() => run(load));
+async function saveSupplier() { const editing = editingSupplier.value; await run(async () => { let id = ""; if (editing) await api.put(`/suppliers/${editing.id}`, { tenantId: auth.tenantId, id: editing.id, ...supplier }); else id = (await api.post<{ id: string }>("/suppliers", { tenantId: auth.tenantId, ...supplier })).data.id; showSupplierModal.value = false; await load(); if (selectCreatedSupplier.value && id) supplierId.value = id; selectCreatedSupplier.value = false; }, editing ? "Proveedor actualizado." : "Proveedor creado."); }
+async function viewStatement(target: Supplier) { await run(async () => { statement.value = (await api.get(`/suppliers/${target.id}/account`, { params: { tenantId: auth.tenantId } })).data; }); }
+watch([() => auth.tenantId, () => tenant.activeWarehouseId], () => void load(), { immediate: true });
 </script>
+
 <template>
-  <div class="page-heading">
-    <div>
-      <h1>Compras y proveedores</h1>
-      <p>
-        Registrá las compras y recibí mercadería en
-        {{
-          tenant.warehouses.find((w) => w.id === tenant.activeWarehouseId)
-            ?.name
-        }}.
-      </p>
-    </div>
-    <Truck />
-  </div>
-  <div class="tabs">
-    <button type="button" :class="{ active: tab === 'orders' }" @click="tab = 'orders'">Compras</button
-    ><button type="button" :class="{ active: tab === 'suppliers' }" @click="tab = 'suppliers'">Proveedores</button
-    >
-  </div>
-  <p v-if="busy" role="status"><LoaderCircle class="spin" /> Procesando…</p>
-  <section v-if="tab === 'orders'" class="panel">
-    <h2>Nueva orden de compra</h2>
-    <form novalidate @submit.prevent="create">
-      <div class="supplier-picker"><label
-        >Proveedor<select v-model="supplierId" required>
-          <option value="" disabled>Seleccionar proveedor</option>
-          <option
-            v-for="s in suppliers.filter((s) => s.isActive)"
-            :key="s.id"
-            :value="s.id"
-          >
-            {{ s.legalName }}
-          </option>
-        </select></label
-      ><button type="button" class="secondary" @click="openSupplier(undefined, true)"><Plus :size="16" />Nuevo proveedor</button></div>
-      <div v-for="(line, i) in lines" :key="i" class="purchase-line">
-        <label
-          >Producto<select
-            v-model="line.productId"
-            required
-            @change="
-              line.unitCost =
-                products.find((p) => p.id === line.productId)?.cost || 0
-            "
-          >
-            <option value="" disabled>Seleccionar producto</option>
-            <option v-for="p in products" :key="p.id" :value="p.id">
-              {{ p.sku }} · {{ p.name }}
-            </option>
-          </select></label
-        ><label
-          >Unidades<input
-            v-model.number="line.quantity"
-            type="number"
-            required
-            min="1"
-            step="1" /></label
-        ><label
-          >Costo unitario<CurrencyInput
-            v-model="line.unitCost"
-            :min="0" /></label
-        ><button
-          type="button"
-          class="icon-button"
-          aria-label="Quitar línea"
-          :disabled="lines.length === 1"
-          @click="lines.splice(i, 1)"
-        >
-          <Trash2 :size="16" />
-        </button>
-      </div>
-      <div class="section-heading">
-        <button
-          type="button"
-          class="secondary"
-          @click="lines.push({ productId: '', quantity: 1, unitCost: 0 })"
-        >
-          <Plus :size="16" />Agregar línea</button
-        ><strong>{{ money(total) }}</strong
-        ><button class="primary" :disabled="busy">Guardar orden</button>
-      </div>
-    </form>
-    <h2>Órdenes de la sucursal</h2>
-    <div class="responsive-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Proveedor</th>
-            <th>Total</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="o in orders" :key="o.id">
-            <td>{{ dateTime(o.createdAtUtc) }}</td>
-            <td>
-              {{ suppliers.find((s) => s.id === o.supplierId)?.legalName }}
-            </td>
-            <td>{{ money(o.totalAmount) }}</td>
-            <td>
-              {{ o.status === "Draft" ? "Pendiente de recepción" : "Recibida" }}
-            </td>
-            <td>
-              <button
-                v-if="o.status === 'Draft'"
-                class="secondary"
-                :disabled="busy"
-                @click="receive(o)"
-              >
-                <PackageCheck :size="16" />Recibir mercadería</button
-              ><button
-                v-else-if="!o.invoiced"
-                class="secondary"
-                @click="invoice.orderId = o.id"
-              >
-                Registrar factura</button
-              ><span v-else class="status success-status">Facturada</span>
-            </td>
-          </tr>
-          <tr v-if="!orders.length">
-            <td colspan="5">Todavía no hay compras en esta sucursal.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <form v-if="invoice.orderId" novalidate @submit.prevent="invoicePurchase">
-      <label
-        >Número de factura del proveedor<input
-          v-model.trim="invoice.number"
-          required
-          maxlength="50"
-          placeholder="0001-00000123" /></label
-      ><button class="primary" :disabled="busy">
-        Registrar factura de compra
-      </button>
-    </form>
-  </section>
-  <section v-if="tab === 'suppliers'" class="panel">
-    <div class="section-heading"><div><h2>Proveedores</h2><p class="muted">Administrá los datos comerciales y consultá los movimientos de cuenta.</p></div><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="primary" @click="openSupplier()"><Plus :size="16" />Nuevo proveedor</button></div>
-    <div class="responsive-table">
-      <table>
-        <thead>
-          <tr>
-            <th>Proveedor</th>
-            <th>CUIT</th>
-            <th>Contacto</th>
-            <th>Email</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="s in suppliers" :key="s.id">
-            <td>{{ s.legalName }}</td>
-            <td>{{ s.taxId }}</td>
-            <td>{{ s.phone || 'Sin teléfono' }}<small>{{ s.address || 'Sin dirección' }}</small></td>
-            <td>{{ s.email }}</td>
-            <td><span :class="s.isActive ? 'status success-status' : 'status danger'">{{ s.isActive ? 'Activo' : 'Inactivo' }}</span></td>
-            <td>
-              <div class="invoice-actions"><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" :disabled="busy" title="Editar proveedor" :aria-label="`Editar ${s.legalName}`" @click="openSupplier(s)"><Pencil :size="16" /></button>
-              <button
-                v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
-                :disabled="busy"
-                title="Ver movimientos de cuenta"
-                :aria-label="`Ver movimientos de ${s.legalName}`"
-                @click="viewStatement(s)"
-              ><ScrollText :size="16" /></button></div>
-            </td>
-          </tr>
-          <tr v-if="!suppliers.length">
-            <td colspan="6">Creá un proveedor para comenzar a comprar.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <article v-for="entry in statement" :key="entry.id" class="section-heading">
-      <span>{{ dateTime(entry.occurredAtUtc) }} · {{ entry.description }}</span
-      ><strong>{{ money(entry.amount) }}</strong>
-    </article>
-  </section>
-  <div v-if="showSupplierModal" class="modal-backdrop"><section class="modal supplier-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="showSupplierModal = false"><X /></button><h2>{{ editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2><p>Completá los datos comerciales del proveedor.</p><form novalidate @submit.prevent="createSupplier"><div class="form-grid"><label>Razón social<input v-model.trim="supplier.legalName" required maxlength="150" autofocus /></label><label>CUIT<input v-model="supplier.taxId" required inputmode="numeric" pattern="[0-9]{11}" maxlength="11" /></label><label>Email<input v-model.trim="supplier.email" type="email" /></label><label>Teléfono<input v-model.trim="supplier.phone" maxlength="30" /></label><label class="wide-field">Dirección<input v-model.trim="supplier.address" maxlength="300" /></label><label>Condición fiscal<select v-model="supplier.taxCondition"><option>Responsable Inscripto</option><option>Monotributo</option><option>Exento</option></select></label></div><label v-if="editingSupplier" class="supplier-active"><input v-model="supplier.isActive" type="checkbox" /><span><strong>Proveedor activo</strong><small>Podrá seleccionarse al crear nuevas órdenes de compra.</small></span></label><div class="modal-actions"><button type="button" class="secondary" @click="showSupplierModal = false">Cancelar</button><button class="primary" :disabled="busy"><Save :size="16" />{{ busy ? 'Guardando…' : 'Guardar proveedor' }}</button></div></form></section></div>
+  <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Compras</div><h1>Compras y proveedores</h1><p>Gestioná órdenes, recepciones y facturas de proveedores.</p></div><button v-if="tab === 'orders'" class="primary" @click="openOrder"><Plus :size="17" />Nueva orden de compra</button></div>
+  <div class="tabs"><button :class="{ active: tab === 'orders' }" @click="tab = 'orders'">Órdenes de compra</button><button :class="{ active: tab === 'invoices' }" @click="tab = 'invoices'">Facturas de proveedores</button><button :class="{ active: tab === 'suppliers' }" @click="tab = 'suppliers'">Proveedores</button></div>
+  <p v-if="busy" class="empty-small"><LoaderCircle class="spin" />Procesando…</p>
+  <section v-if="tab === 'orders'" class="panel"><div class="section-heading"><div><h2>Órdenes de compra</h2><p class="muted">Seguimiento de autorización, recepción y facturación.</p></div></div><div class="responsive-table"><table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody><tr v-for="order in orders" :key="order.id"><td>{{ dateTime(order.createdAtUtc) }}</td><td>{{ supplierName(order.supplierId) }}</td><td>{{ money(order.totalAmount) }}</td><td><span class="status" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td><td><div class="order-actions"><span class="invoice-actions"><button title="Ver detalle" aria-label="Ver detalle de la orden" @click="viewOrder(order)"><Eye :size="16" /></button></span><button v-if="order.status === 'PendingAuthorization' && isAdmin" class="secondary" @click="authorize(order)"><Check :size="16" />Autorizar</button><button v-if="order.status === 'PendingAuthorization' && (isAdmin || order.createdByUserId === auth.user?.id)" class="secondary danger-action" @click="cancel(order)"><Ban :size="16" />Anular</button><button v-if="['PendingReceipt','Draft'].includes(order.status)" class="secondary" @click="receive(order)"><PackageCheck :size="16" />Recibir mercadería</button><button v-if="order.status === 'Received' && !order.invoiced" class="secondary" @click="openInvoice(order)"><FilePlus2 :size="16" />Registrar factura</button><span v-if="order.invoiced" class="status success-status">Facturada</span></div></td></tr><tr v-if="!orders.length"><td colspan="5" class="empty-small">Todavía no hay órdenes de compra.</td></tr></tbody></table></div></section>
+  <section v-if="tab === 'invoices'" class="panel"><div class="section-heading"><div><h2>Facturas de proveedores</h2><p class="muted">Facturas registradas a partir de órdenes recibidas.</p></div></div><div class="responsive-table"><table><thead><tr><th>N.º factura</th><th>Proveedor</th><th>Fecha</th><th>Total</th><th>Acciones</th></tr></thead><tbody><tr v-for="invoice in invoices" :key="invoice.id"><td><strong>{{ invoice.number }}</strong></td><td>{{ invoice.supplier }}</td><td>{{ dateTime(invoice.issuedAtUtc) }}</td><td>{{ money(invoice.totalAmount) }}</td><td><div class="invoice-actions"><button title="Ver detalle" :aria-label="`Ver detalle de la factura ${invoice.number}`" @click="viewInvoice(invoice)"><Eye :size="16" /></button></div></td></tr><tr v-if="!invoices.length"><td colspan="5" class="empty-small">Todavía no hay facturas de proveedores registradas.</td></tr></tbody></table></div></section>
+  <section v-if="tab === 'suppliers'" class="panel"><div class="section-heading"><div><h2>Proveedores</h2><p class="muted">Datos comerciales y movimientos de cuenta.</p></div><button v-if="isAdmin" class="primary" @click="openSupplier()"><Plus :size="16" />Nuevo proveedor</button></div><div class="responsive-table"><table><thead><tr><th>Proveedor</th><th>CUIT</th><th>Contacto</th><th>Email</th><th>Estado</th><th>Acciones</th></tr></thead><tbody><tr v-for="item in suppliers" :key="item.id"><td>{{ item.legalName }}</td><td>{{ item.taxId }}</td><td>{{ item.phone || 'Sin teléfono' }}<small>{{ item.address || 'Sin dirección' }}</small></td><td>{{ item.email || '—' }}</td><td><span class="status" :class="item.isActive ? 'success-status' : 'danger'">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span></td><td><div class="invoice-actions"><button v-if="isAdmin" title="Editar proveedor" @click="openSupplier(item)"><Pencil :size="16" /></button><button v-if="isAdmin" title="Ver movimientos de cuenta" @click="viewStatement(item)"><ScrollText :size="16" /></button></div></td></tr></tbody></table></div><article v-for="entry in statement" :key="entry.id" class="statement-line"><span>{{ dateTime(entry.occurredAtUtc) }} · {{ entry.description }}</span><strong>{{ money(entry.amount) }}</strong></article></section>
+  <div v-if="showOrderModal" class="modal-backdrop"><section class="modal purchase-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="showOrderModal = false"><X /></button><h2>Nueva orden de compra</h2><p>Las órdenes de administradores quedan listas para recepción; las de empleados requieren autorización.</p><form novalidate @submit.prevent="createOrder"><div class="supplier-picker"><label>Proveedor<select v-model="supplierId" required><option value="" disabled>Seleccionar proveedor</option><option v-for="item in activeSuppliers" :key="item.id" :value="item.id">{{ item.legalName }}</option></select></label><button v-if="isAdmin" type="button" class="secondary" @click="openSupplier(undefined, true)"><Plus :size="16" />Nuevo proveedor</button></div><div v-for="(line, index) in lines" :key="index" class="purchase-line"><label>Producto<select v-model="line.productId" required @change="line.unitCost = products.find(product => product.id === line.productId)?.cost || 0"><option value="" disabled>Seleccionar producto</option><option v-for="product in products" :key="product.id" :value="product.id">{{ product.sku }} · {{ product.name }}</option></select></label><label>Unidades<input v-model.number="line.quantity" type="number" min="1" required /></label><label>Costo unitario<CurrencyInput v-model="line.unitCost" :min="0" /></label><button class="icon-button" type="button" title="Quitar línea" :disabled="lines.length === 1" @click="lines.splice(index, 1)"><X :size="17" /></button></div><div class="modal-actions"><button type="button" class="secondary" @click="lines.push({ productId: '', quantity: 1, unitCost: 0 })"><Plus :size="16" />Agregar línea</button><strong>{{ money(total) }}</strong><button class="primary" :disabled="busy"><Save :size="16" />Guardar orden</button></div></form></section></div>
+  <div v-if="showInvoiceModal && invoiceOrder" class="modal-backdrop"><section class="modal compact-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="showInvoiceModal = false"><X /></button><h2>Registrar factura de proveedor</h2><p>{{ supplierName(invoiceOrder.supplierId) }} · {{ money(invoiceOrder.totalAmount) }}</p><form novalidate @submit.prevent="registerInvoice"><label>Número de factura<input v-model.trim="invoiceNumber" required maxlength="50" placeholder="0001-00000001" autofocus /></label><div class="modal-actions"><button type="button" class="secondary" @click="showInvoiceModal = false">Cancelar</button><button class="primary" :disabled="busy"><ReceiptText :size="16" />Registrar factura</button></div></form></section></div>
+  <div v-if="selectedOrder" class="modal-backdrop"><section class="modal detail-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="selectedOrder = null"><X /></button><h2>Detalle de orden</h2><p><strong>{{ supplierName(selectedOrder.supplierId) }}</strong><br>{{ dateTime(selectedOrder.createdAtUtc) }} · {{ statusLabel(selectedOrder.status) }}</p><table class="detail-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th><th>Subtotal</th></tr></thead><tbody><tr v-for="item in selectedOrder.items" :key="item.productId"><td>{{ item.product }}<small>{{ item.sku }}</small></td><td>{{ item.quantity }}</td><td>{{ money(item.unitCost) }}</td><td>{{ money(item.totalAmount) }}</td></tr></tbody></table><div class="detail-total"><span>Total</span><strong>{{ money(selectedOrder.totalAmount) }}</strong></div><button class="secondary" @click="selectedOrder = null">Cerrar</button></section></div>
+  <div v-if="selectedInvoice" class="modal-backdrop"><section class="modal detail-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="selectedInvoice = null"><X /></button><h2>Factura {{ selectedInvoice.number }}</h2><p><strong>{{ selectedInvoice.supplier }}</strong><br>{{ dateTime(selectedInvoice.issuedAtUtc) }}</p><table class="detail-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Costo</th><th>Subtotal</th></tr></thead><tbody><tr v-for="item in selectedInvoice.items" :key="item.productId"><td>{{ item.product }}<small>{{ item.sku }}</small></td><td>{{ item.quantity }}</td><td>{{ money(item.unitCost) }}</td><td>{{ money(item.totalAmount) }}</td></tr></tbody></table><div class="detail-total"><span>Total</span><strong>{{ money(selectedInvoice.totalAmount) }}</strong></div><button class="secondary" @click="selectedInvoice = null">Cerrar</button></section></div>
+  <div v-if="showSupplierModal" class="modal-backdrop"><section class="modal supplier-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="showSupplierModal = false"><X /></button><h2>{{ editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2><form novalidate @submit.prevent="saveSupplier"><div class="form-grid"><label>Razón social<input v-model.trim="supplier.legalName" required maxlength="150" autofocus /></label><label>CUIT<input v-model="supplier.taxId" required inputmode="numeric" maxlength="11" /></label><label>Email<input v-model.trim="supplier.email" type="email" /></label><label>Teléfono<input v-model.trim="supplier.phone" maxlength="30" /></label><label class="wide-field">Dirección<input v-model.trim="supplier.address" maxlength="300" /></label><label>Condición fiscal<select v-model="supplier.taxCondition"><option>Responsable Inscripto</option><option>Monotributo</option><option>Exento</option></select></label></div><label v-if="editingSupplier" class="supplier-active"><input v-model="supplier.isActive" type="checkbox" /><span><strong>Proveedor activo</strong><small>Podrá seleccionarse en nuevas órdenes.</small></span></label><div class="modal-actions"><button type="button" class="secondary" @click="showSupplierModal = false">Cancelar</button><button class="primary" :disabled="busy"><Save :size="16" />{{ busy ? 'Guardando…' : 'Guardar proveedor' }}</button></div></form></section></div>
 </template>
+
 <style scoped>
-.purchase-line {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr auto;
-  gap: 0.7rem;
-  align-items: end;
-  margin: 0.8rem 0;
-}
-.tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{background:#ec4899;color:#fff;border-color:#ec4899}.supplier-picker{display:flex;align-items:end;gap:.75rem}.supplier-picker label{flex:1}
-.supplier-active{display:flex;align-items:center;gap:.75rem;min-height:4.5rem;padding:.8rem 1rem;margin:.8rem 0;border:1px solid #e2e8f0;border-radius:.8rem;cursor:pointer}.supplier-active input{width:1.15rem;height:1.15rem;margin:0;accent-color:#ec4899}.supplier-active span{display:grid;gap:.2rem}.supplier-active small{color:#64748b}.supplier-modal{width:min(100%,42rem)}.modal-actions{display:flex;justify-content:flex-end;gap:.65rem;margin-top:1rem}
-h2 {
-  margin: 1rem 0;
-}
-.section-heading {
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-.wide-field{grid-column:span 2}.responsive-table small{display:block;color:#64748b;margin-top:.2rem}
-@media (max-width: 650px) {
-  .purchase-line {
-    grid-template-columns: 1fr 1fr;
-  }
-  .purchase-line > label:first-child {
-    grid-column: 1/-1;
-  }
-  .wide-field{grid-column:span 1}
-}
+.tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{background:#ec4899;color:#fff;border-color:#ec4899}.order-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem}.order-actions .secondary{padding:.45rem .65rem;font-size:.8rem}.danger-action{color:#be123c}.purchase-modal{width:min(100%,52rem);max-height:calc(100dvh - 24px);overflow:auto}.supplier-picker{display:flex;align-items:end;gap:.75rem}.supplier-picker label{flex:1}.purchase-line{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:.7rem;align-items:end;margin:.8rem 0}.modal-actions{display:flex;justify-content:flex-end;align-items:center;gap:.65rem;margin-top:1rem}.modal-actions strong{margin-right:auto}.supplier-modal,.detail-modal{width:min(100%,42rem)}.detail-table{width:100%;border-collapse:collapse;margin:1rem 0}.detail-table th,.detail-table td{padding:.65rem;border-bottom:1px solid #e2e8f0;text-align:left}.detail-table th:nth-child(n+2),.detail-table td:nth-child(n+2){text-align:right}.detail-table small,.responsive-table small{display:block;color:#64748b;margin-top:.2rem}.detail-total{display:flex;justify-content:space-between;margin:1rem 0;font-size:1.1rem}.supplier-active{display:flex;align-items:center;gap:.75rem;min-height:4.5rem;padding:.8rem 1rem;margin:.8rem 0;border:1px solid #e2e8f0;border-radius:.8rem;cursor:pointer}.supplier-active input{width:1.15rem;height:1.15rem;margin:0;accent-color:#ec4899}.supplier-active span{display:grid;gap:.2rem}.supplier-active small{color:#64748b}.wide-field{grid-column:span 2}.statement-line{display:flex;justify-content:space-between;gap:1rem;padding:.8rem 0;border-bottom:1px solid #e2e8f0}@media(max-width:650px){.purchase-line{grid-template-columns:1fr 1fr}.purchase-line>label:first-child{grid-column:1/-1}.supplier-picker{align-items:stretch;flex-direction:column}.wide-field{grid-column:span 1}.modal-actions{flex-wrap:wrap}.modal-actions strong{width:100%;order:-1}}
 </style>
