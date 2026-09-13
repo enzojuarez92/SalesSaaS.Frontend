@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Banknote, CircleEllipsis, CreditCard, Download, Eye, Landmark, LoaderCircle, Printer, Smartphone, Wallet, X } from "lucide-vue-next";
+import { Banknote, CircleEllipsis, CreditCard, Eye, Landmark, LoaderCircle, Printer, Smartphone, Wallet, X } from "lucide-vue-next";
 import { paymentMethodLabel, paymentMethodOptions } from "../constants/paymentMethods";
 import { api, apiError, notify } from "../services/api";
 import { money } from "../services/format";
@@ -65,12 +65,22 @@ function applyFilters() {
   page.value = 1;
   void load();
 }
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  })[character] ?? character);
+}
 function printTicket(sale: SaleDetail) {
-  const ticket = window.open("", "_blank", "noopener,noreferrer");
-  if (!ticket) { notify("El navegador bloqueó la ventana de impresión.", true); return; }
-  const lines = sale.items.map(item => `<tr><td>${item.product}</td><td>${item.quantity}</td><td>${money(item.unitPrice)}</td><td>${money(item.subtotal)}</td></tr>`).join("");
-  ticket.document.write(`<!doctype html><html lang="es"><head><title>${sale.receiptNumber}</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#172033}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}th:last-child,td:last-child{text-align:right}.total{font-size:18px;font-weight:700;text-align:right;margin-top:18px}</style></head><body><h1>Comprobante de venta</h1><p><b>${sale.receiptNumber}</b><br>${new Date(sale.date).toLocaleString("es-AR")}<br>Cliente: ${sale.customer} · ${sale.customerDocument}<br>Vendedor: ${sale.seller}<br>Pago: ${paymentMethodLabel(sale.paymentMethod)}</p><table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${lines}</tbody></table><p class="total">Total: ${money(sale.total)}</p><script>window.onload=()=>window.print()<\/script></body></html>`);
-  ticket.document.close();
+  const lines = sale.items.map(item => `<tr><td>${escapeHtml(item.product)}</td><td>${escapeHtml(item.quantity)}</td><td>${escapeHtml(money(item.unitPrice))}</td><td>${escapeHtml(money(item.subtotal))}</td></tr>`).join("");
+  const documentHtml = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(sale.receiptNumber)}</title><style>@page{margin:16mm}body{font-family:Arial,sans-serif;margin:0;color:#172033;font-size:13px}h1{margin:0 0 16px;font-size:22px}p{line-height:1.6}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:9px 8px;border-bottom:1px solid #dbe2ea;text-align:left}th{color:#475569;font-size:11px;text-transform:uppercase}th:nth-child(n+2),td:nth-child(n+2){text-align:right}.total{font-size:18px;font-weight:700;text-align:right;margin-top:20px}</style></head><body><h1>Comprobante de venta</h1><p><b>${escapeHtml(sale.receiptNumber)}</b><br>${escapeHtml(new Date(sale.date).toLocaleString("es-AR"))}<br>Cliente: ${escapeHtml(sale.customer)} · ${escapeHtml(sale.customerDocument)}<br>Vendedor: ${escapeHtml(sale.seller)}<br>Pago: ${escapeHtml(paymentMethodLabel(sale.paymentMethod))}</p><table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>${lines}</tbody></table><p class="total">Total: ${escapeHtml(money(sale.total))}</p><script>window.addEventListener("load",()=>{window.focus();window.print();});<\/script></body></html>`;
+  const url = URL.createObjectURL(new Blob([documentHtml], { type: "text/html;charset=utf-8" }));
+  const ticket = window.open(url, "_blank", "noopener,noreferrer");
+  if (!ticket) {
+    URL.revokeObjectURL(url);
+    notify("El navegador bloqueó la ventana de impresión.", true);
+    return;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 watch(() => auth.tenantId, () => { void load(); void loadSellers(); }, { immediate: true });
 watch(() => tenant.activeWarehouseId, load);
@@ -88,7 +98,7 @@ watch(() => tenant.activeWarehouseId, load);
     <div v-if="totals.length" class="payment-summary"><article v-for="item in totals" :key="item.value"><small>{{ item.label }}</small><strong>{{ money(item.total) }}</strong></article></div>
     <div class="responsive-table"><table><thead><tr><th>Fecha y hora</th><th>Comprobante</th><th>Cliente</th><th>Vendedor</th><th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
       <tr v-if="loading"><td colspan="8" class="empty-small"><LoaderCircle class="spin" /> Cargando ventas…</td></tr>
-      <tr v-for="sale in rows" :key="sale.id"><td>{{ new Date(sale.date).toLocaleString("es-AR") }}</td><td><strong>{{ sale.receiptNumber }}</strong></td><td>{{ sale.customer }}</td><td>{{ sale.seller }}</td><td>{{ paymentMethodLabel(sale.paymentMethod) }}</td><td>{{ money(sale.total) }}</td><td><span class="status" :class="sale.status === 'Completed' ? 'success-status' : 'danger'">{{ sale.status === "Completed" ? "Completada" : sale.status }}</span></td><td><div class="history-actions"><button class="icon-button" title="Ver detalle" aria-label="Ver detalle" :disabled="detailLoading" @click="openDetail(sale.id)"><Eye :size="17" /></button><button class="icon-button" title="Imprimir o descargar ticket" aria-label="Imprimir o descargar ticket" :disabled="detailLoading" @click="openDetail(sale.id).then(() => selected && printTicket(selected))"><Download :size="17" /></button></div></td></tr>
+      <tr v-for="sale in rows" :key="sale.id"><td>{{ new Date(sale.date).toLocaleString("es-AR") }}</td><td><strong>{{ sale.receiptNumber }}</strong></td><td>{{ sale.customer }}</td><td>{{ sale.seller }}</td><td>{{ paymentMethodLabel(sale.paymentMethod) }}</td><td>{{ money(sale.total) }}</td><td><span class="status" :class="sale.status === 'Completed' ? 'success-status' : 'danger'">{{ sale.status === "Completed" ? "Completada" : sale.status }}</span></td><td><div class="invoice-actions"><button title="Ver detalle" aria-label="Ver detalle" :disabled="detailLoading" @click="openDetail(sale.id)"><Eye :size="17" /></button></div></td></tr>
       <tr v-if="!loading && !rows.length"><td colspan="8">No hay ventas para la sucursal y filtro seleccionados.</td></tr>
     </tbody></table></div>
     <TablePaginator
@@ -106,5 +116,5 @@ watch(() => tenant.activeWarehouseId, load);
 </template>
 
 <style scoped>
-.history-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}.history-toolbar label{display:grid;gap:.35rem}.select-with-icon{position:relative;display:block}.select-with-icon svg{position:absolute;z-index:1;top:50%;left:.75rem;transform:translateY(-50%);color:#64748b;pointer-events:none}.select-with-icon select{padding-left:2.5rem}.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.history-actions{display:flex;gap:.4rem}.sale-detail{width:min(100%,720px)}.sale-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}.sale-meta div{padding:.65rem;border-radius:.6rem;background:#f8fafc}.sale-meta dt,.detail-table small{display:block;color:#64748b;font-size:.75rem}.sale-meta dd{margin:.2rem 0 0;font-weight:600}.detail-table{width:100%;border-collapse:collapse}.detail-table th,.detail-table td{padding:.6rem;border-bottom:1px solid #e2e8f0;text-align:left}.detail-table th:last-child,.detail-table td:last-child{text-align:right}.detail-total{display:flex;justify-content:space-between;margin:1rem 0;font-size:1.1rem}.modal-actions{display:flex;justify-content:flex-end;gap:.6rem}@media(max-width:900px){.history-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.history-toolbar,.sale-meta{grid-template-columns:1fr}}
+.history-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}.history-toolbar label{display:grid;gap:.35rem}.select-with-icon{position:relative;display:block}.select-with-icon svg{position:absolute;z-index:1;top:50%;left:.75rem;transform:translateY(-50%);color:#64748b;pointer-events:none}.select-with-icon select{padding-left:2.5rem}.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.sale-detail{width:min(100%,720px)}.sale-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}.sale-meta div{padding:.65rem;border-radius:.6rem;background:#f8fafc}.sale-meta dt,.detail-table small{display:block;color:#64748b;font-size:.75rem}.sale-meta dd{margin:.2rem 0 0;font-weight:600}.detail-table{width:100%;border-collapse:collapse}.detail-table th,.detail-table td{padding:.6rem;border-bottom:1px solid #e2e8f0;text-align:left}.detail-table th:last-child,.detail-table td:last-child{text-align:right}.detail-total{display:flex;justify-content:space-between;margin:1rem 0;font-size:1.1rem}.modal-actions{display:flex;justify-content:flex-end;gap:.6rem}@media(max-width:900px){.history-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.history-toolbar,.sale-meta{grid-template-columns:1fr}}
 </style>
