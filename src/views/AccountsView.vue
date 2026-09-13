@@ -42,7 +42,8 @@ const showForm = ref(false),
   entries = ref<AccountEntry[]>([]),
   statementLoading = ref(false),
   paymentAmount = ref(0),
-  paymentDescription = ref("");
+  paymentDescription = ref(""),
+  paymentDescriptionError = ref("");
 const fieldErrors = reactive<Record<string, string>>({});
 let successTimer: ReturnType<typeof setTimeout> | undefined;
 const form = reactive({
@@ -194,6 +195,7 @@ async function openStatement(customer: Customer) {
   entries.value = [];
   paymentAmount.value = 0;
   paymentDescription.value = "";
+  paymentDescriptionError.value = "";
   showStatement.value = true;
   statementLoading.value = true;
   error.value = "";
@@ -218,6 +220,7 @@ async function openStatement(customer: Customer) {
 }
 async function recordPayment() {
   if (saving.value) return;
+  paymentDescriptionError.value = "";
   if (!selected.value || !tenant.activeWarehouseId) {
     error.value = "Elegí un depósito antes de registrar el cobro.";
     return;
@@ -232,9 +235,10 @@ async function recordPayment() {
     paymentAmount.value > selected.value.currentBalance ||
     descriptionError
   ) {
-    error.value =
-      descriptionError ||
-      "El pago debe ser mayor a cero y no superar el saldo pendiente de esta sucursal.";
+    paymentDescriptionError.value = descriptionError;
+    error.value = !paymentAmount.value || paymentAmount.value > selected.value.currentBalance
+      ? "El pago debe ser mayor a cero y no superar el saldo pendiente de esta sucursal."
+      : "";
     return;
   }
   saving.value = true;
@@ -546,7 +550,14 @@ watch(
           >Descripción<input
             v-model.trim="paymentDescription"
             maxlength="300"
-            placeholder="Ej. Pago en efectivo" /></label
+            placeholder="Ej. Pago en efectivo"
+            :aria-invalid="!!paymentDescriptionError"
+            @input="paymentDescriptionError = ''" /><small
+            v-if="paymentDescriptionError"
+            class="field-error"
+            role="alert"
+            >{{ paymentDescriptionError }}</small
+          ></label
         ><button class="primary full" :disabled="saving">Registrar pago</button>
       </form>
     </section>
