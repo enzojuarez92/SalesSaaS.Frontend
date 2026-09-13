@@ -796,7 +796,7 @@ async function saveQuote() {
     <section class="modal cash-pending-modal" role="alertdialog" aria-modal="true" aria-labelledby="cash-pending-title">
       <div class="modal-icon"><CircleAlert /></div>
       <h2 id="cash-pending-title">Caja pendiente de cierre</h2>
-      <p>
+      <p class="cash-pending-description">
         Existe una sesión de caja abierta correspondiente al día
         <strong>{{ new Date(pendingCashSession.openedAtUtc).toLocaleDateString("es-AR") }}</strong>.
         Para continuar vendiendo, debés realizar el arqueo y cierre de esa caja y abrir una nueva sesión para el día de hoy.
@@ -933,6 +933,11 @@ async function saveQuote() {
 }
 .cash-closed-alert .primary {
   flex: none;
+}
+.cash-pending-description {
+  margin: 1.15rem 0;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 .fiscal-toggle {
   display: flex;
