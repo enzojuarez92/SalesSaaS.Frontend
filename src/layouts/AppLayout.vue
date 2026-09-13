@@ -57,6 +57,7 @@ const notifications = ref<Notification[]>([]),
 const allNav = [
   { name: "Resumen", path: "/dashboard", icon: LayoutDashboard },
   { name: "Ventas / POS", path: "/ventas", icon: ShoppingCart },
+  { name: "Historial de ventas", path: "/ventas/historial", icon: Receipt },
   { name: "Productos", path: "/productos", icon: Boxes },
   { name: "Categorías", path: "/categorias", icon: Tags },
   { name: "Depósitos", path: "/depositos", icon: Building2 },
@@ -81,7 +82,7 @@ const nav = computed(() =>
     return (
       common.includes(n.path) ||
       (role === "Seller"
-        ? ["/ventas", "/caja", "/presupuestos", "/cuentas-corrientes"].includes(
+        ? ["/ventas", "/ventas/historial", "/caja", "/presupuestos", "/cuentas-corrientes"].includes(
             n.path,
           )
         : ["/categorias", "/depositos", "/compras"].includes(n.path))
@@ -177,16 +178,7 @@ async function saveProfile() {
 }
 </script>
 <template>
-  <div
-    class="app-shell"
-    :class="{ collapsed }"
-    @keydown.esc="
-      mobile = false;
-      notificationsOpen = false;
-      profileOpen = false;
-      search = '';
-    "
-  >
+  <div class="app-shell" :class="{ collapsed }">
     <button
       v-if="mobile"
       class="sidebar-overlay"
@@ -364,7 +356,6 @@ async function saveProfile() {
       <div
         v-if="profileModalOpen"
         class="modal-backdrop"
-        @click.self="profileModalOpen = false"
       >
         <section
           class="modal profile-modal"

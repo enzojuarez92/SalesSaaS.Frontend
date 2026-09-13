@@ -417,7 +417,7 @@ watch(
       </button>
     </div>
   </section>
-  <div v-if="showForm" class="modal-backdrop" @click.self="showForm = false">
+  <div v-if="showForm" class="modal-backdrop">
     <section class="modal product-modal">
       <button class="icon-button modal-close" @click="showForm = false">
         <X />
@@ -506,7 +506,6 @@ watch(
   <div
     v-if="showStatement && selected"
     class="modal-backdrop"
-    @click.self="showStatement = false"
   >
     <section class="modal statement-modal">
       <button class="icon-button modal-close" @click="showStatement = false">

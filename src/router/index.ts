@@ -56,6 +56,12 @@ export const router = createRouter({
           meta: { requiresActiveSubscription: true },
         },
         {
+          path: "ventas/historial",
+          name: "sales-history",
+          component: () => import("../views/SalesHistoryView.vue"),
+          meta: { requiresActiveSubscription: true },
+        },
+        {
           path: "afip",
           name: "afip",
           component: () => import("../views/AfipView.vue"),

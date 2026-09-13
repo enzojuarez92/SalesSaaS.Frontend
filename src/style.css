@@ -1711,3 +1711,9 @@ textarea[aria-invalid="true"] {
   border-color: #fb7185;
   box-shadow: 0 0 0 3px #4c1020;
 }
+
+/* Payment choices preserve the client credit detail on its own line. */
+.payment-methods button span { display: grid; gap: 2px; flex: 1; }
+.payment-methods button span strong { font-weight: 650; }
+.payment-methods button span small { color: #64748b; font-size: 11px; }
+.payment-methods button:disabled { cursor: not-allowed; opacity: .58; }

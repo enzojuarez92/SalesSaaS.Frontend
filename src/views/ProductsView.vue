@@ -421,7 +421,7 @@ watch(
       </button>
     </div>
   </section>
-  <div v-if="showModal" class="modal-backdrop" @click.self="showModal = false">
+  <div v-if="showModal" class="modal-backdrop">
     <section class="modal product-modal">
       <button class="icon-button modal-close" @click="showModal = false">
         <X />
@@ -562,7 +562,6 @@ watch(
   <div
     v-if="showCategoryModal"
     class="modal-backdrop"
-    @click.self="showCategoryModal = false"
   >
     <section class="modal compact-modal">
       <button
@@ -598,7 +597,6 @@ watch(
   <div
     v-if="showAdjustment && adjusting"
     class="modal-backdrop"
-    @click.self="showAdjustment = false"
   >
     <section class="modal">
       <button class="icon-button modal-close" @click="showAdjustment = false">

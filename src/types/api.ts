@@ -52,6 +52,15 @@ export interface RecentSale {
   occurredAtUtc: string;
   paymentMethod: number;
 }
+export interface SalesHistoryRow {
+  id: string; date: string; receiptNumber: string; customer: string; seller: string;
+  paymentMethod: number; total: number; status: string;
+}
+export interface SaleDetail {
+  id: string; date: string; receiptNumber: string; customer: string; customerDocument: string;
+  seller: string; paymentMethod: number; total: number; discount: number; status: string;
+  items: Array<{ product: string; sku: string; quantity: number; unitPrice: number; subtotal: number }>;
+}
 export interface DashboardSummary {
   dailySales: number;
   dailyTransactions: number;

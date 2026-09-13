@@ -182,7 +182,7 @@ watch(
       </li>
     </ul>
   </div>
-  <div v-if="show" class="modal-backdrop" @click.self="show = false">
+  <div v-if="show" class="modal-backdrop">
     <section class="modal" style="width: min(95vw, 70rem); max-width: 70rem">
       <button
         class="icon-button modal-close"

@@ -116,6 +116,9 @@ const visibleCustomers = computed(() =>
 const availableCredit = computed(() =>
   selectedCustomer.value ? (selectedCustomer.value.availableCredit ?? 0) : 0,
 );
+const canUseAccount = computed(() =>
+  Boolean(selectedCustomer.value?.allowCredit) && total.value <= availableCredit.value,
+);
 const paymentOptions = [
   { value: 1, label: "Efectivo", icon: Wallet },
   { value: 4, label: "Transferencia", icon: Landmark },
@@ -338,7 +341,8 @@ function createdId(response: { data?: { id?: string }; headers?: unknown }) {
     (typeof location === "string" ? location.split("/").pop() : "") ||
     ""
   );
-}async function openPayment() {
+}
+async function openPayment() {
   if (!cart.value.length || !tenant.activeWarehouseId) {
     error.value = "Elegí un depósito y al menos un producto para continuar.";
     return;
@@ -355,16 +359,16 @@ function createdId(response: { data?: { id?: string }; headers?: unknown }) {
       "No pudimos preparar el cliente Consumidor Final. Intentá nuevamente.";
     return;
   }
-  if (
-    payment.value === 6 &&
-    (!selectedCustomer.value.allowCredit || total.value > availableCredit.value)
-  ) {
+  if (payment.value === 6 && !canUseAccount.value) {
     error.value = "El cliente no tiene crédito disponible para esta venta.";
     return;
   }
   error.value = "";
   showPayment.value = true;
 }
+watch(canUseAccount, (enabled) => {
+  if (!enabled && payment.value === 6) payment.value = 1;
+});
 async function createSale() {
   if (saving.value || !cart.value.length || !tenant.activeWarehouseId) return;
   saving.value = true;
@@ -737,7 +741,6 @@ async function saveQuote() {
   <div
     v-if="showQuickOpen"
     class="modal-backdrop"
-    @click.self="showQuickOpen = false"
   >
     <section class="modal">
       <button class="icon-button modal-close" @click="showQuickOpen = false">
@@ -765,7 +768,6 @@ async function saveQuote() {
   <div
     v-if="showPayment"
     class="modal-backdrop"
-    @click.self="showPayment = false"
   >
     <section class="modal">
       <button class="icon-button modal-close" @click="showPayment = false">
@@ -780,15 +782,14 @@ async function saveQuote() {
           :key="option.value"
           :disabled="
             option.value === 6 &&
-            (!selectedCustomer?.allowCredit || total > availableCredit)
+            !canUseAccount
           "
           :class="{ active: payment === option.value }"
           @click="payment = option.value"
         >
-          <component :is="option.icon" :size="20" /><span
-            >{{ option.label
-            }}<small v-if="option.value === 6"
-              >Disponible: {{ money(availableCredit) }}</small
+          <component :is="option.icon" :size="20" /><span>
+            <strong>{{ option.label }}</strong><small v-if="option.value === 6"
+              >{{ selectedCustomer?.allowCredit ? `Crédito disponible: ${money(availableCredit)}` : "Seleccioná un cliente con cuenta corriente habilitada" }}</small
             ></span
           ><CheckCircle2 v-if="payment === option.value" :size="17" />
         </button>
@@ -819,7 +820,6 @@ async function saveQuote() {
   <div
     v-if="showSuccess"
     class="modal-backdrop"
-    @click.self="showSuccess = false"
   >
     <section class="modal">
       <button class="icon-button modal-close" @click="showSuccess = false">
@@ -867,7 +867,7 @@ async function saveQuote() {
       </button>
     </section>
   </div>
-  <div v-if="showAfip" class="modal-backdrop" @click.self="showAfip = false">
+  <div v-if="showAfip" class="modal-backdrop">
     <section class="modal">
       <button class="icon-button modal-close" @click="showAfip = false">
         <X />
