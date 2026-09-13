@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import InventoryTools from "../components/InventoryTools.vue";
+import TablePaginator from "../components/TablePaginator.vue";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { money } from "../services/format";
 import { computed, nextTick, reactive, ref, watch } from "vue";
 import {
   AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
   LoaderCircle,
   PackagePlus,
   Pencil,
@@ -327,8 +326,7 @@ watch(
         <option value="">Todo el stock</option>
         <option value="available">Disponible</option>
         <option value="low">Stock bajo</option>
-        <option value="out">Sin stock</option></select
-      ><span>{{ totalCount }} producto(s)</span>
+        <option value="out">Sin stock</option></select>
     </div>
     <div v-if="loading" class="empty-small">
       <LoaderCircle class="spin" /> Actualizando inventario…
@@ -406,28 +404,15 @@ watch(
         </tbody>
       </table>
     </div>
-    <div class="pagination">
-      <button
-        class="icon-button"
-        :disabled="page === 1"
-        @click="
-          page--;
-          load();
-        "
-      >
-        <ChevronLeft /></button
-      ><span>Página {{ page }} de {{ totalPages }}</span
-      ><button
-        class="icon-button"
-        :disabled="page === totalPages"
-        @click="
-          page++;
-          load();
-        "
-      >
-        <ChevronRight />
-      </button>
-    </div>
+    <TablePaginator
+      :page="page"
+      :total-pages="totalPages"
+      :total-count="totalCount"
+      :shown-count="products.length"
+      :page-size="10"
+      @previous="page--; load()"
+      @next="page++; load()"
+    />
   </section>
   <div v-if="showModal" class="modal-backdrop">
     <section class="modal product-modal">

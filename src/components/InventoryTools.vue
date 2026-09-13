@@ -6,6 +6,7 @@ import { download } from "../services/download";
 import { dateTime, number } from "../services/format";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
+import TablePaginator from "./TablePaginator.vue";
 const props = defineProps<{
   productId?: string;
   productName?: string;
@@ -262,28 +263,15 @@ watch(
         </div>
         <button class="primary" :disabled="busy">Transferir stock</button>
       </form>
-      <div class="pagination">
-        <button
-          class="secondary"
-          :disabled="busy || page === 1"
-          @click="
-            page--;
-            ledger();
-          "
-        >
-          Anterior</button
-        ><span>{{ page }} / {{ Math.max(1, Math.ceil(count / 50)) }}</span
-        ><button
-          class="secondary"
-          :disabled="busy || page * 50 >= count"
-          @click="
-            page++;
-            ledger();
-          "
-        >
-          Siguiente
-        </button>
-      </div>
+      <TablePaginator
+        :page="page"
+        :total-pages="Math.max(1, Math.ceil(count / 50))"
+        :total-count="count"
+        :shown-count="rows.length"
+        :page-size="50"
+        @previous="page--; ledger()"
+        @next="page++; ledger()"
+      />
     </section>
   </div>
 </template>

@@ -312,10 +312,24 @@ async function ensureConsumerFinal() {
     /* A concurrent POS may have created it; the operator can still select a customer. */
   }
 }
-function selectCustomer(customer: Customer) {
+async function refreshSelectedCustomerCredit() {
+  if (!auth.tenantId || !selectedCustomer.value) return;
+  const { data } = await api.get<Customer>(`/customers/${selectedCustomer.value.id}`, {
+    params: { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId || undefined },
+  });
+  selectedCustomer.value = data;
+  const index = customers.value.findIndex((customer) => customer.id === data.id);
+  if (index >= 0) customers.value.splice(index, 1, data);
+}
+async function selectCustomer(customer: Customer) {
   selectedCustomer.value = customer;
   customerSearch.value = "";
   showCustomer.value = false;
+  try {
+    await refreshSelectedCustomerCredit();
+  } catch (cause) {
+    error.value = apiError(cause);
+  }
 }
 async function printReceipt() {
   if (!invoiceId.value || !auth.tenantId) return;
@@ -374,6 +388,12 @@ async function openPayment() {
   if (!selectedCustomer.value) {
     error.value =
       "No pudimos preparar el cliente Consumidor Final. Intentá nuevamente.";
+    return;
+  }
+  try {
+    await refreshSelectedCustomerCredit();
+  } catch (cause) {
+    error.value = apiError(cause);
     return;
   }
   if (payment.value === 6 && !canUseAccount.value) {

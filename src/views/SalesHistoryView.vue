@@ -6,15 +6,18 @@ import { api, apiError, notify } from "../services/api";
 import { money } from "../services/format";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-import type { SaleDetail, SalesHistoryRow } from "../types/api";
+import TablePaginator from "../components/TablePaginator.vue";
+import type { PagedResult, SaleDetail, SalesHistoryRow } from "../types/api";
 
 const auth = useAuthStore(), tenant = useTenantStore();
-const rows = ref<SalesHistoryRow[]>([]), selected = ref<SaleDetail | null>(null);
+const rows = ref<SalesHistoryRow[]>([]), selected = ref<SaleDetail | null>(null), result = ref<PagedResult<SalesHistoryRow> | null>(null);
 const loading = ref(false), detailLoading = ref(false), paymentMethod = ref<number | "">(""), sellerId = ref(""), from = ref(""), to = ref("");
+const page = ref(1);
+const paymentTotals = ref<Array<{ paymentMethod: number; total: number }>>([]);
 const sellers = ref<Array<{ id: string; name: string }>>([]);
 const paymentIcons = { 1: Banknote, 2: CreditCard, 3: CreditCard, 4: Landmark, 5: Smartphone, 6: Wallet, 7: Smartphone, 8: CircleEllipsis };
 const selectedPaymentIcon = computed(() => paymentIcons[paymentMethod.value as keyof typeof paymentIcons] || Wallet);
-const totals = computed(() => paymentMethodOptions.map(option => ({ ...option, total: rows.value.filter(row => row.paymentMethod === option.value && row.status !== "Cancelled").reduce((sum, row) => sum + row.total, 0) })).filter(option => option.total > 0));
+const totals = computed(() => paymentMethodOptions.map(option => ({ ...option, total: paymentTotals.value.find(total => total.paymentMethod === option.value)?.total ?? 0 })).filter(option => option.total > 0));
 const params = () => ({
   tenantId: auth.tenantId,
   warehouseId: tenant.activeWarehouseId || undefined,
@@ -22,12 +25,28 @@ const params = () => ({
   sellerId: sellerId.value || undefined,
   fromUtc: from.value ? `${from.value}T00:00:00` : undefined,
   toUtc: to.value ? `${to.value}T23:59:59.999` : undefined,
+  pageNumber: page.value,
+  pageSize: 25,
 });
 
 async function load() {
   if (!auth.tenantId) return;
   loading.value = true;
-  try { rows.value = (await api.get<SalesHistoryRow[]>("/sales/history", { params: params() })).data; }
+  try {
+    const { data } = await api.get<PagedResult<SalesHistoryRow>>("/sales/history", { params: params() });
+    result.value = data;
+    rows.value = data.items;
+    try {
+      paymentTotals.value = (await api.get<Array<{ paymentMethod: number; total: number }>>("/sales/history/totals", { params: params() })).data;
+    } catch (cause) {
+      paymentTotals.value = rows.value.filter(row => row.status !== "Cancelled").reduce<Array<{ paymentMethod: number; total: number }>>((totals, row) => {
+        const current = totals.find(total => total.paymentMethod === row.paymentMethod);
+        if (current) current.total += row.total;
+        else totals.push({ paymentMethod: row.paymentMethod, total: row.total });
+        return totals;
+      }, []);
+    }
+  }
   catch (cause) { notify(apiError(cause), true); }
   finally { loading.value = false; }
 }
@@ -41,6 +60,10 @@ async function openDetail(id: string) {
   try { selected.value = (await api.get<SaleDetail>(`/sales/history/${id}`, { params: { tenantId: auth.tenantId } })).data; }
   catch (cause) { notify(apiError(cause), true); }
   finally { detailLoading.value = false; }
+}
+function applyFilters() {
+  page.value = 1;
+  void load();
 }
 function printTicket(sale: SaleDetail) {
   const ticket = window.open("", "_blank", "noopener,noreferrer");
@@ -57,10 +80,10 @@ watch(() => tenant.activeWarehouseId, load);
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Ventas</div><h1>Historial de ventas</h1><p>Consultá comprobantes, medios de pago y el detalle de cada operación.</p></div></div>
   <section class="panel">
     <div class="history-toolbar">
-      <label>Desde<input v-model="from" type="date" @change="load" /></label>
-      <label>Hasta<input v-model="to" type="date" :min="from || undefined" @change="load" /></label>
-      <label>Vendedor<select v-model="sellerId" @change="load"><option value="">Todos los vendedores</option><option v-for="seller in sellers" :key="seller.id" :value="seller.id">{{ seller.name }}</option></select></label>
-      <label>Medio de pago<span class="select-with-icon"><component :is="selectedPaymentIcon" :size="17" /><select v-model.number="paymentMethod" @change="load"><option value="">Todos</option><option v-for="option in paymentMethodOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></span></label>
+      <label>Desde<input v-model="from" type="date" @change="applyFilters" /></label>
+      <label>Hasta<input v-model="to" type="date" :min="from || undefined" @change="applyFilters" /></label>
+      <label>Vendedor<select v-model="sellerId" @change="applyFilters"><option value="">Todos los vendedores</option><option v-for="seller in sellers" :key="seller.id" :value="seller.id">{{ seller.name }}</option></select></label>
+      <label>Medio de pago<span class="select-with-icon"><component :is="selectedPaymentIcon" :size="17" /><select v-model.number="paymentMethod" @change="applyFilters"><option value="">Todos</option><option v-for="option in paymentMethodOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></span></label>
     </div>
     <div v-if="totals.length" class="payment-summary"><article v-for="item in totals" :key="item.value"><small>{{ item.label }}</small><strong>{{ money(item.total) }}</strong></article></div>
     <div class="responsive-table"><table><thead><tr><th>Fecha y hora</th><th>Comprobante</th><th>Cliente</th><th>Vendedor</th><th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
@@ -68,6 +91,16 @@ watch(() => tenant.activeWarehouseId, load);
       <tr v-for="sale in rows" :key="sale.id"><td>{{ new Date(sale.date).toLocaleString("es-AR") }}</td><td><strong>{{ sale.receiptNumber }}</strong></td><td>{{ sale.customer }}</td><td>{{ sale.seller }}</td><td>{{ paymentMethodLabel(sale.paymentMethod) }}</td><td>{{ money(sale.total) }}</td><td><span class="status" :class="sale.status === 'Completed' ? 'success-status' : 'danger'">{{ sale.status === "Completed" ? "Completada" : sale.status }}</span></td><td><div class="history-actions"><button class="icon-button" title="Ver detalle" aria-label="Ver detalle" :disabled="detailLoading" @click="openDetail(sale.id)"><Eye :size="17" /></button><button class="icon-button" title="Imprimir o descargar ticket" aria-label="Imprimir o descargar ticket" :disabled="detailLoading" @click="openDetail(sale.id).then(() => selected && printTicket(selected))"><Download :size="17" /></button></div></td></tr>
       <tr v-if="!loading && !rows.length"><td colspan="8">No hay ventas para la sucursal y filtro seleccionados.</td></tr>
     </tbody></table></div>
+    <TablePaginator
+      v-if="result"
+      :page="page"
+      :total-pages="result.totalPages"
+      :total-count="result.totalCount"
+      :shown-count="rows.length"
+      :page-size="result.pageSize"
+      @previous="page--; load()"
+      @next="page++; load()"
+    />
   </section>
   <div v-if="selected" class="modal-backdrop"><section class="modal sale-detail"><button class="icon-button modal-close" aria-label="Cerrar" @click="selected = null"><X /></button><h2>Detalle de venta</h2><p><strong>{{ selected.receiptNumber }}</strong> · {{ new Date(selected.date).toLocaleString("es-AR") }}</p><dl class="sale-meta"><div><dt>Cliente</dt><dd>{{ selected.customer }} · {{ selected.customerDocument }}</dd></div><div><dt>Vendedor</dt><dd>{{ selected.seller }}</dd></div><div><dt>Medio de pago</dt><dd>{{ paymentMethodLabel(selected.paymentMethod) }}</dd></div></dl><table class="detail-table"><thead><tr><th>Producto</th><th>Cant.</th><th>Unitario</th><th>Subtotal</th></tr></thead><tbody><tr v-for="item in selected.items" :key="`${item.sku}-${item.product}`"><td>{{ item.product }}<small>{{ item.sku }}</small></td><td>{{ item.quantity }}</td><td>{{ money(item.unitPrice) }}</td><td>{{ money(item.subtotal) }}</td></tr></tbody></table><div class="detail-total"><span>Total</span><strong>{{ money(selected.total) }}</strong></div><div class="modal-actions"><button class="secondary" @click="selected = null">Cerrar</button><button class="primary" @click="printTicket(selected)"><Printer :size="16" />Imprimir / descargar</button></div></section></div>
 </template>

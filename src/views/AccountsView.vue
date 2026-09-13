@@ -2,6 +2,7 @@
 import { download } from "../services/download";
 import { money } from "../services/format";
 import CurrencyInput from "../components/CurrencyInput.vue";
+import TablePaginator from "../components/TablePaginator.vue";
 import { computed, reactive, ref, watch } from "vue";
 import {
   CircleDollarSign,
@@ -33,7 +34,8 @@ const customers = ref<Customer[]>([]),
   error = ref(""),
   success = ref(""),
   page = ref(1),
-  totalPages = ref(1);
+  totalPages = ref(1),
+  totalCount = ref(0);
 const showForm = ref(false),
   showStatement = ref(false),
   selected = ref<Customer | null>(null),
@@ -154,6 +156,7 @@ async function load() {
     });
     customers.value = data.items;
     totalPages.value = data.totalPages;
+    totalCount.value = data.totalCount;
   } catch (cause) {
     error.value = apiError(cause);
   } finally {
@@ -317,7 +320,7 @@ watch(
       <span class="finance-icon green"><UserRound /></span>
       <div>
         <p>Clientes activos</p>
-        <strong>{{ customers.length }}</strong>
+        <strong>{{ totalCount }}</strong>
       </div>
     </article>
   </div>
@@ -326,8 +329,7 @@ watch(
       <label class="search-input"
         ><Search :size="17" /><input
           v-model="search"
-          placeholder="Buscar por nombre, CUIT o DNI" /></label
-      ><span class="muted">{{ customers.length }} resultados</span>
+          placeholder="Buscar por nombre, CUIT o DNI" /></label>
     </div>
     <div v-if="loading" class="empty-small">
       <LoaderCircle class="spin" /> Cargando clientes…
@@ -394,28 +396,15 @@ watch(
         </tbody>
       </table>
     </div>
-    <div v-if="totalPages > 1" class="pagination">
-      <button
-        class="secondary"
-        :disabled="page === 1"
-        @click="
-          page--;
-          load();
-        "
-      >
-        Anterior</button
-      ><span>Página {{ page }} de {{ totalPages }}</span
-      ><button
-        class="secondary"
-        :disabled="page === totalPages"
-        @click="
-          page++;
-          load();
-        "
-      >
-        Siguiente
-      </button>
-    </div>
+    <TablePaginator
+      :page="page"
+      :total-pages="totalPages"
+      :total-count="totalCount"
+      :shown-count="customers.length"
+      :page-size="12"
+      @previous="page--; load()"
+      @next="page++; load()"
+    />
   </section>
   <div v-if="showForm" class="modal-backdrop">
     <section class="modal product-modal">

@@ -1627,6 +1627,16 @@ table small,
   background: #0f172a;
   color: #e2e8f0;
 }
+.table-pagination {
+  justify-content: space-between;
+  margin-top: 18px;
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pagination-summary { color: #64748b; }
 .dark body,
 .dark .main-shell,
 .dark .page-content { background: #0f172a; color: #e2e8f0; }
