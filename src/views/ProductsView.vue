@@ -419,6 +419,7 @@ watch(
                 <InventoryTools
                   :product-id="product.id"
                   :product-name="product.name"
+                  :product-stock="product.stock"
                   compact
                 /><button
                   :aria-label="`Ajustar ${product.name}`"

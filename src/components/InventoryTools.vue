@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { ArrowLeftRight, Download, Upload, History, X, LoaderCircle } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { download } from "../services/download";
@@ -10,6 +10,7 @@ import TablePaginator from "./TablePaginator.vue";
 const props = defineProps<{
   productId?: string;
   productName?: string;
+  productStock?: number;
   compact?: boolean;
 }>();
 const emit = defineEmits<{ updated: [] }>();
@@ -34,6 +35,7 @@ const rows = ref<
   }>
 >([]);
 const errors = ref<Array<{ row: number; message: string }>>([]);
+const currentStock = computed(() => rows.value[0]?.stockAfter ?? props.productStock ?? 0);
 const auth = useAuthStore(),
   destination = ref(""),
   quantity = ref(1),
@@ -193,11 +195,7 @@ watch(
       >
         <X :size="20" />
       </button>
-      <h2>Kardex · {{ productName }}</h2>
-      <p>
-        Movimientos de la sucursal activa. Los saldos históricos se reconstruyen
-        desde el registro disponible.
-      </p>
+      <div class="kardex-heading"><div><h2>Kardex · {{ productName }}</h2><p>Movimientos de la sucursal activa. Los saldos históricos se reconstruyen desde el registro disponible.</p></div><div class="current-stock"><span>Stock actual</span><strong>{{ number(currentStock) }}</strong><small>unidades</small></div></div>
       <div class="responsive-table">
         <table>
           <thead>
@@ -262,7 +260,7 @@ watch(
             >Referencia<input v-model.trim="reference" maxlength="100" required
           /></label>
         </div>
-        <button class="primary transfer-button" :disabled="busy"><ArrowLeftRight :size="17" />Transferir stock</button>
+        <button class="primary transfer-button" :disabled="busy"><ArrowLeftRight :size="17" /><span>Transferir stock</span></button>
       </form>
       <div class="kardex-pagination"><TablePaginator
           :page="page"
@@ -320,6 +318,14 @@ watch(
   color: #64748b;
 }
 .kardex-close:hover { color: #e11d48; background: #fff1f2; border-color: #f9a8d4; }
+.kardex-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-right: 3rem; }
+.kardex-heading > div:first-child { min-width: 0; }
+.kardex-heading h2 { margin: 0; }
+.kardex-heading p { margin: .45rem 0 0; }
+.current-stock { display: grid; justify-items: end; min-width: 8.5rem; padding: .7rem .9rem; border: 1px solid #f9a8d4; border-radius: .75rem; background: #fdf2f8; }
+.current-stock span { color: #9d174d; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.current-stock strong { color: #be185d; font-size: 1.5rem; line-height: 1.1; }
+.current-stock small { color: #9d174d; }
 .kardex-transfer {
   margin-top: 1.25rem;
   padding: 1.25rem;
@@ -334,7 +340,7 @@ watch(
   margin: 0 0 1rem;
   font-size: 1rem;
 }
-.transfer-button { margin-top: 1rem; min-width: 11.5rem; }
+.transfer-button { display: inline-flex !important; align-items: center; justify-content: center; gap: .5rem; margin-top: 1rem; min-width: 11.5rem; white-space: nowrap; }
 .kardex-pagination { margin-top: 1rem; border-top: 1px solid #e2e8f0; }
 .kardex-pagination :deep(.table-pagination) { margin-top: 0; padding-top: 1rem; }
 .kardex-pagination :deep(.pagination-controls) { gap: .6rem; }
@@ -343,5 +349,7 @@ watch(
   .kardex-pagination :deep(.table-pagination) { align-items: flex-start; flex-direction: column; }
   .kardex-pagination :deep(.pagination-controls) { width: 100%; justify-content: space-between; }
   .transfer-button { width: 100%; }
+  .kardex-heading { padding-right: 3rem; align-items: stretch; flex-direction: column; }
+  .current-stock { justify-items: start; }
 }
 </style>
