@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Banknote, CircleEllipsis, CreditCard, Eye, Landmark, LoaderCircle, Printer, Smartphone, Wallet, X } from "lucide-vue-next";
+import { Banknote, ChevronLeft, ChevronRight, CircleEllipsis, CreditCard, Eye, Landmark, LoaderCircle, Printer, Search, Smartphone, Wallet, X } from "lucide-vue-next";
 import { paymentMethodLabel, paymentMethodOptions } from "../constants/paymentMethods";
 import { api, apiError, notify } from "../services/api";
 import { money } from "../services/format";
@@ -16,8 +16,9 @@ const today = (() => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 })();
-const loading = ref(false), detailLoading = ref(false), paymentMethod = ref<number | "">(""), sellerId = ref(""), from = ref(today), to = ref(today);
+const loading = ref(false), detailLoading = ref(false), paymentMethod = ref<number | "">(""), sellerId = ref(""), searchTerm = ref(""), from = ref(today), to = ref(today);
 const page = ref(1);
+const paymentSummary = ref<HTMLElement | null>(null);
 const paymentTotals = ref<Array<{ paymentMethod: number; total: number }>>([]);
 const sellers = ref<Array<{ id: string; name: string }>>([]);
 const paymentIcons = { 1: Banknote, 2: CreditCard, 3: CreditCard, 4: Landmark, 5: Smartphone, 6: Wallet, 7: Smartphone, 8: CircleEllipsis };
@@ -29,6 +30,7 @@ const params = () => ({
   warehouseId: tenant.activeWarehouseId || undefined,
   paymentMethod: paymentMethod.value || undefined,
   sellerId: sellerId.value || undefined,
+  searchTerm: searchTerm.value.trim() || undefined,
   fromUtc: from.value ? `${from.value}T00:00:00` : undefined,
   toUtc: to.value ? `${to.value}T23:59:59.999` : undefined,
   pageNumber: page.value,
@@ -71,6 +73,16 @@ function applyFilters() {
   page.value = 1;
   void load();
 }
+let searchTimer: number | undefined;
+function scheduleSearch() {
+  window.clearTimeout(searchTimer);
+  searchTimer = window.setTimeout(applyFilters, 300);
+}
+function scrollPaymentCards(direction: number) {
+  const container = paymentSummary.value;
+  if (!container) return;
+  container.scrollBy({ left: direction * Math.max(240, container.clientWidth * 0.75), behavior: "smooth" });
+}
 function printTicket(sale: SaleDetail) {
   const business = getPrintBusiness(auth.tenantId);
   if (!printReceipt({
@@ -97,12 +109,13 @@ watch(() => tenant.activeWarehouseId, load);
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Ventas</div><h1>Historial de ventas</h1><p>Consultá comprobantes, medios de pago y el detalle de cada operación.</p></div></div>
   <section class="panel">
     <div class="history-toolbar">
+      <label class="history-search">Buscar<span class="search-with-icon"><Search :size="17" /><input v-model.trim="searchTerm" placeholder="Cliente, total o comprobante" @input="scheduleSearch" @keydown.enter.prevent="applyFilters" /></span></label>
       <label>Desde<input v-model="from" type="date" @change="applyFilters" /></label>
       <label>Hasta<input v-model="to" type="date" :min="from || undefined" @change="applyFilters" /></label>
       <label>Vendedor<select v-model="sellerId" @change="applyFilters"><option value="">Todos los vendedores</option><option v-for="seller in sellers" :key="seller.id" :value="seller.id">{{ seller.name }}</option></select></label>
       <label>Medio de pago<span class="select-with-icon"><component :is="selectedPaymentIcon" :size="17" /><select v-model.number="paymentMethod" @change="applyFilters"><option value="">Todos</option><option v-for="option in paymentMethodOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></span></label>
     </div>
-    <div v-if="totals.length" class="payment-summary"><article v-for="item in totals" :key="item.value"><small>{{ item.label }}</small><strong>{{ money(item.total) }}</strong></article></div>
+    <div v-if="totals.length" class="payment-carousel"><button v-if="totals.length > 4" class="carousel-control" type="button" aria-label="Ver medios de pago anteriores" @click="scrollPaymentCards(-1)"><ChevronLeft :size="18" /></button><div ref="paymentSummary" class="payment-summary"><article v-for="item in totals" :key="item.value"><small>{{ item.label }}</small><strong>{{ money(item.total) }}</strong></article></div><button v-if="totals.length > 4" class="carousel-control" type="button" aria-label="Ver más medios de pago" @click="scrollPaymentCards(1)"><ChevronRight :size="18" /></button></div>
     <div class="responsive-table"><table><thead><tr><th>Fecha y hora</th><th>Comprobante</th><th>Cliente</th><th>Vendedor</th><th>Pago</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
       <tr v-if="loading"><td colspan="8" class="empty-small"><LoaderCircle class="spin" /> Cargando ventas…</td></tr>
       <tr v-for="sale in rows" :key="sale.id"><td>{{ new Date(sale.date).toLocaleString("es-AR") }}</td><td><strong>{{ sale.receiptNumber }}</strong></td><td>{{ sale.customer }}</td><td>{{ sale.seller }}</td><td>{{ paymentMethodLabel(sale.paymentMethod) }}</td><td>{{ money(sale.total) }}</td><td><span class="status" :class="sale.status === 'Completed' ? 'success-status' : 'danger'">{{ sale.status === "Completed" ? "Completada" : sale.status }}</span></td><td><div class="invoice-actions"><button title="Ver detalle" aria-label="Ver detalle" :disabled="detailLoading" @click="openDetail(sale.id)"><Eye :size="17" /></button></div></td></tr>
@@ -125,4 +138,5 @@ watch(() => tenant.activeWarehouseId, load);
 <style scoped>
 .history-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}.history-toolbar label{display:grid;gap:.35rem}.select-with-icon{position:relative;display:block}.select-with-icon svg{position:absolute;z-index:1;top:50%;left:.75rem;transform:translateY(-50%);color:#64748b;pointer-events:none}.select-with-icon select{padding-left:2.5rem}.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.sale-detail{width:min(100%,720px)}.sale-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}.sale-meta div{padding:.65rem;border-radius:.6rem;background:#f8fafc}.sale-meta dt,.detail-table small{display:block;color:#64748b;font-size:.75rem}.sale-meta dd{margin:.2rem 0 0;font-weight:600}.detail-table{width:100%;border-collapse:collapse}.detail-table th,.detail-table td{padding:.6rem;border-bottom:1px solid #e2e8f0;text-align:left}.detail-table th:last-child,.detail-table td:last-child{text-align:right}.detail-total{display:flex;justify-content:space-between;margin:1rem 0;font-size:1.1rem}.modal-actions{display:flex;justify-content:flex-end;gap:.6rem}@media(max-width:900px){.history-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.history-toolbar,.sale-meta{grid-template-columns:1fr}}
 .responsive-table tfoot td{padding:.9rem .75rem;border-top:2px solid #f9a8d4;background:#fdf2f8}.responsive-table tfoot small{display:block;margin-top:.2rem;color:#9d174d;font-size:.75rem}
+.history-toolbar{grid-template-columns:minmax(220px,1.45fr) repeat(2,minmax(130px,.85fr)) minmax(170px,1.1fr) minmax(175px,1.1fr)}.search-with-icon{position:relative;display:block}.search-with-icon svg{position:absolute;z-index:1;top:50%;left:.75rem;transform:translateY(-50%);color:#64748b;pointer-events:none}.search-with-icon input{padding-left:2.5rem}.payment-carousel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:.5rem;margin:0 0 1rem}.payment-summary{display:flex;gap:.65rem;overflow-x:auto;margin:0;scroll-behavior:smooth;scroll-snap-type:x proximity;scrollbar-width:none}.payment-summary::-webkit-scrollbar{display:none}.payment-summary article{flex:0 0 clamp(10.5rem,17vw,14rem);scroll-snap-align:start}.carousel-control{display:grid;place-items:center;width:2.35rem;height:2.35rem;padding:0;border:1px solid #dbe3ef;border-radius:.65rem;background:#fff;color:#db2777;cursor:pointer}.carousel-control:hover{background:#fdf2f8;border-color:#f9a8d4}@media(max-width:900px){.history-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.history-toolbar{grid-template-columns:1fr}.payment-carousel{grid-template-columns:minmax(0,1fr)}.carousel-control{display:none}.payment-summary article{flex-basis:min(82vw,16rem)}}
 </style>
