@@ -13,7 +13,9 @@ const props = defineProps<{
   productStock?: number;
   compact?: boolean;
 }>();
-const emit = defineEmits<{ updated: [] }>();
+const emit = defineEmits<{
+  updated: [payload?: { productId?: string; stock?: number }];
+}>();
 const tenant = useTenantStore();
 const busy = ref(false),
   error = ref(""),
@@ -46,6 +48,7 @@ async function transfer() {
     return;
   }
   await run(async () => {
+    const stockAfterTransfer = currentStock.value - quantity.value;
     await api.post("/stock-movements/transfer", {
       tenantId: auth.tenantId,
       productId: props.productId,
@@ -55,7 +58,10 @@ async function transfer() {
       reference: reference.value,
     });
     show.value = false;
-    emit("updated");
+    emit("updated", {
+      productId: props.productId,
+      stock: stockAfterTransfer,
+    });
     notify("Stock transferido correctamente.");
   });
 }

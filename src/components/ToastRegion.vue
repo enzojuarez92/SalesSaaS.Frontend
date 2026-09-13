@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-import { CheckCircle2, CircleAlert, X } from "lucide-vue-next";
+import { CheckCircle2, CircleX, X } from "lucide-vue-next";
 const messages = ref<Array<{ id: number; text: string; error: boolean }>>([]);
 let seq = 0;
 const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -32,11 +32,16 @@ onUnmounted(() => {
       :class="m.error ? 'toast-error' : 'toast-success'"
       :role="m.error ? 'alert' : 'status'"
     >
-      <CircleAlert v-if="m.error" /><CheckCircle2 v-else /><span>{{
-        m.text
-      }}</span
-      ><button
-        class="icon-button"
+      <span class="toast-icon">
+        <CircleX v-if="m.error" :size="24" />
+        <CheckCircle2 v-else :size="24" />
+      </span>
+      <span class="toast-content">
+        <strong>{{ m.error ? "No se pudo completar la acción" : "Operación completada" }}</strong>
+        <span>{{ m.text }}</span>
+      </span>
+      <button
+        class="toast-close"
         aria-label="Cerrar notificación"
         @click="messages = messages.filter((x) => x.id !== m.id)"
       >
@@ -56,28 +61,61 @@ onUnmounted(() => {
   width: min(28rem, calc(100vw - 2rem));
 }
 .toast {
-  display: flex;
-  gap: 0.6rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.9rem;
   align-items: center;
-  padding: 0.85rem;
-  border-radius: 1rem;
-  box-shadow: 0 8px 24px #0f172a22;
-  border: 1px solid;
+  padding: 1rem 1.1rem;
+  border-radius: 0.85rem;
+  color: #d8d4e8;
+  background: #252041;
+  border: 1px solid #ffffff0d;
+  box-shadow: 0 16px 35px #08051e66;
+  overflow: hidden;
 }
-.toast span {
+.toast-content {
+  display: grid;
+  gap: 0.2rem;
   flex: 1;
 }
-.toast svg {
+.toast-content strong {
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+.toast-content > span {
+  color: #c3bdd6;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.toast-icon {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
   flex-shrink: 0;
 }
+.toast-close {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  color: #b7b0ce;
+  background: transparent;
+  cursor: pointer;
+}
+.toast-close:hover { background: #ffffff14; color: #fff; }
 .toast-error {
-  background: #fff1f2;
-  color: #9f1239;
-  border-color: #fecdd3;
+  background: linear-gradient(100deg, #492240, #252041 72%);
 }
+.toast-error .toast-icon,
+.toast-error .toast-content strong { color: #ff3269; }
 .toast-success {
-  background: #ecfdf5;
-  color: #065f46;
-  border-color: #a7f3d0;
+  background: linear-gradient(100deg, #124d4b, #252041 72%);
 }
+.toast-success .toast-icon,
+.toast-success .toast-content strong { color: #22e382; }
 </style>

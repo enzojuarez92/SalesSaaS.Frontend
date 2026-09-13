@@ -1722,6 +1722,48 @@ textarea[aria-invalid="true"] {
   box-shadow: 0 0 0 3px #4c1020;
 }
 
+/* Keep text and controls legible over the dark application surfaces. */
+.dark .responsive-table th,
+.dark .responsive-table td::before,
+.dark .section-label,
+.dark .pagination-summary,
+.dark label > small,
+.dark .input-hint-space,
+.dark .payment-methods button span small { color: #aebdd2; }
+.dark .responsive-table td,
+.dark .responsive-table td strong,
+.dark .responsive-table td small,
+.dark .panel label,
+.dark .panel strong,
+.dark .modal label,
+.dark .modal strong,
+.dark .table-pagination,
+.dark .pagination-controls span { color: #edf3fb; }
+.dark .responsive-table tr,
+.dark .responsive-table thead,
+.dark .responsive-table td,
+.dark .kardex-transfer,
+.dark .kardex-pagination { border-color: #35445d; }
+.dark .responsive-table tr:hover { background: #1d2a40; }
+.dark .secondary,
+.dark .icon-button { color: #f2f6fc; background: #1b2940; border-color: #475a77; }
+.dark .secondary:hover,
+.dark .icon-button:hover { background: #293a55; border-color: #7589a8; }
+.dark .sidebar .nav-item { color: #c8d4e6; }
+.dark .sidebar .nav-item.active { color: #fff1f7 !important; background: #3a294a !important; }
+.dark .status.success-status { color: #047857; background: #d1fae5; }
+.dark .afip-status.pending { color: #92400e; background: #fef3c7; }
+.dark .payment-summary article,
+.dark .cash-kpis article,
+.dark .sale-meta div { background: #1b2940 !important; border-color: #35445d !important; }
+.dark .payment-summary strong,
+.dark .cash-kpis strong,
+.dark .sale-meta dd { color: #f8fafc !important; }
+.dark .payment-summary small,
+.dark .payment-summary span,
+.dark .cash-kpis p,
+.dark .sale-meta dt { color: #b9c7da !important; }
+
 /* Payment choices preserve the client credit detail on its own line. */
 .payment-methods button span { display: grid; gap: 2px; flex: 1; }
 .payment-methods button span strong { font-weight: 650; }

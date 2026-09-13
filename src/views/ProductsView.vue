@@ -112,6 +112,21 @@ async function load() {
     loading.value = false;
   }
 }
+function refreshAfterStockTransfer(update?: {
+  productId?: string;
+  stock?: number;
+}) {
+  const productId = update?.productId;
+  const stock = update?.stock;
+  if (productId && typeof stock === "number") {
+    products.value = products.value.map((product) =>
+      product.id === productId
+        ? { ...product, stock }
+        : product,
+    );
+  }
+  void load();
+}
 function open(product?: Product) {
   editingId.value = product?.id || null;
   Object.assign(
@@ -421,6 +436,7 @@ watch(
                   :product-name="product.name"
                   :product-stock="product.stock"
                   compact
+                  @updated="refreshAfterStockTransfer"
                 /><button
                   :aria-label="`Ajustar ${product.name}`"
                   @click="openAdjustment(product)"
