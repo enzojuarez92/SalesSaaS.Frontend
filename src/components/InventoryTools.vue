@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { ArrowLeftRight, Download, Upload, History, X, LoaderCircle } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { download } from "../services/download";
 import { dateTime, number } from "../services/format";
 import { useAuthStore } from "../stores/auth";
@@ -56,6 +56,7 @@ async function transfer() {
     });
     show.value = false;
     emit("updated");
+    notify("Stock transferido correctamente.");
   });
 }
 const types: Record<number, string> = {
