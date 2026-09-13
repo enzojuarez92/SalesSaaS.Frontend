@@ -123,8 +123,8 @@ watch(() => tenant.activeWarehouseId, load);
   <template v-if="['Owner', 'Admin'].includes(auth.user?.role || '')">
     <div class="page-heading">
       <div>
-        <div class="breadcrumb">Tu negocio / Resumen</div>
-        <h1>Resumen general<span class="brand-dot">.</span></h1>
+        <div class="breadcrumb">Tu negocio / Dashboard</div>
+        <h1>Dashboard<span class="brand-dot">.</span></h1>
         <p>La información clave para decidir rápido y operar mejor.</p>
       </div>
       <button class="secondary" :disabled="loading" @click="load">

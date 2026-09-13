@@ -19,6 +19,7 @@ const sellers = ref<Array<{ id: string; name: string }>>([]);
 const paymentIcons = { 1: Banknote, 2: CreditCard, 3: CreditCard, 4: Landmark, 5: Smartphone, 6: Wallet, 7: Smartphone, 8: CircleEllipsis };
 const selectedPaymentIcon = computed(() => paymentIcons[paymentMethod.value as keyof typeof paymentIcons] || Wallet);
 const totals = computed(() => paymentMethodOptions.map(option => ({ ...option, total: paymentTotals.value.find(total => total.paymentMethod === option.value)?.total ?? 0 })).filter(option => option.total > 0));
+const visibleSalesTotal = computed(() => rows.value.reduce((total, sale) => total + sale.total, 0));
 const params = () => ({
   tenantId: auth.tenantId,
   warehouseId: tenant.activeWarehouseId || undefined,
@@ -102,7 +103,7 @@ watch(() => tenant.activeWarehouseId, load);
       <tr v-if="loading"><td colspan="8" class="empty-small"><LoaderCircle class="spin" /> Cargando ventas…</td></tr>
       <tr v-for="sale in rows" :key="sale.id"><td>{{ new Date(sale.date).toLocaleString("es-AR") }}</td><td><strong>{{ sale.receiptNumber }}</strong></td><td>{{ sale.customer }}</td><td>{{ sale.seller }}</td><td>{{ paymentMethodLabel(sale.paymentMethod) }}</td><td>{{ money(sale.total) }}</td><td><span class="status" :class="sale.status === 'Completed' ? 'success-status' : 'danger'">{{ sale.status === "Completed" ? "Completada" : sale.status }}</span></td><td><div class="invoice-actions"><button title="Ver detalle" aria-label="Ver detalle" :disabled="detailLoading" @click="openDetail(sale.id)"><Eye :size="17" /></button></div></td></tr>
       <tr v-if="!loading && !rows.length"><td colspan="8">No hay ventas para la sucursal y filtro seleccionados.</td></tr>
-    </tbody></table></div>
+    </tbody><tfoot v-if="!loading && rows.length"><tr><td colspan="5"><strong>Total de comprobantes visibles</strong><small>{{ result?.totalCount ?? rows.length }} comprobante(s) filtrado(s)</small></td><td><strong>{{ money(visibleSalesTotal) }}</strong></td><td colspan="2"></td></tr></tfoot></table></div>
     <TablePaginator
       v-if="result"
       :page="page"
@@ -119,4 +120,5 @@ watch(() => tenant.activeWarehouseId, load);
 
 <style scoped>
 .history-toolbar{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:.75rem;margin-bottom:1rem}.history-toolbar label{display:grid;gap:.35rem}.select-with-icon{position:relative;display:block}.select-with-icon svg{position:absolute;z-index:1;top:50%;left:.75rem;transform:translateY(-50%);color:#64748b;pointer-events:none}.select-with-icon select{padding-left:2.5rem}.payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.sale-detail{width:min(100%,720px)}.sale-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin:1rem 0}.sale-meta div{padding:.65rem;border-radius:.6rem;background:#f8fafc}.sale-meta dt,.detail-table small{display:block;color:#64748b;font-size:.75rem}.sale-meta dd{margin:.2rem 0 0;font-weight:600}.detail-table{width:100%;border-collapse:collapse}.detail-table th,.detail-table td{padding:.6rem;border-bottom:1px solid #e2e8f0;text-align:left}.detail-table th:last-child,.detail-table td:last-child{text-align:right}.detail-total{display:flex;justify-content:space-between;margin:1rem 0;font-size:1.1rem}.modal-actions{display:flex;justify-content:flex-end;gap:.6rem}@media(max-width:900px){.history-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.history-toolbar,.sale-meta{grid-template-columns:1fr}}
+.responsive-table tfoot td{padding:.9rem .75rem;border-top:2px solid #f9a8d4;background:#fdf2f8}.responsive-table tfoot small{display:block;margin-top:.2rem;color:#9d174d;font-size:.75rem}
 </style>

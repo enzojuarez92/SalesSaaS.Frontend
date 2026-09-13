@@ -55,7 +55,7 @@ const notifications = ref<Notification[]>([]),
   notificationError = ref(""),
   notificationLoading = ref(false);
 const allNav = [
-  { name: "Resumen", path: "/dashboard", icon: LayoutDashboard },
+  { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { name: "Ventas / POS", path: "/ventas", icon: ShoppingCart },
   { name: "Historial de ventas", path: "/ventas/historial", icon: Receipt },
   { name: "Productos", path: "/productos", icon: Boxes },
