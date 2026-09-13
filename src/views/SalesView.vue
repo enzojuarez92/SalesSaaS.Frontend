@@ -28,6 +28,7 @@ import { paymentMethodLabel, paymentMethodOptions } from "../constants/paymentMe
 import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
+import { useRouter } from "vue-router";
 import type {
   AfipAuthorization,
   CashSession,
@@ -38,7 +39,8 @@ import type {
 } from "../types/api";
 type CartLine = Product & { quantity: number };
 const auth = useAuthStore(),
-  tenant = useTenantStore();
+  tenant = useTenantStore(),
+  router = useRouter();
 const products = ref<Product[]>([]),
   customers = ref<Customer[]>([]),
   categories = ref<Category[]>([]),
@@ -61,6 +63,7 @@ const invoiceId = ref(""),
   showSuccess = ref(false),
   showCustomer = ref(false),
   showPayment = ref(false),
+  pendingCashSession = ref<CashSession | null>(null),
   cashOpen = ref(false),
   checkingCash = ref(false),
   showQuickOpen = ref(false),
@@ -129,6 +132,13 @@ const paymentOptions = paymentMethodOptions.map((option) => ({
   ...option,
   icon: paymentIcons[option.value],
 }));
+function localDateKey(date: string | Date) {
+  const value = new Date(date);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+function isPreviousDaySession(session: CashSession) {
+  return localDateKey(session.openedAtUtc) < localDateKey(new Date());
+}
 async function loadCatalogs() {
   if (!auth.tenantId) return;
   loading.value = true;
@@ -204,15 +214,19 @@ async function checkCash() {
         warehouseId: tenant.activeWarehouseId,
       },
     });
-    cashOpen.value = Boolean(
-      data && typeof data === "object" && data.status === "Open",
-    );
+    const session = data && typeof data === "object" ? data : null;
+    pendingCashSession.value = session && isPreviousDaySession(session) ? session : null;
+    cashOpen.value = Boolean(session && session.status === "Open" && !pendingCashSession.value);
   } catch (cause) {
     cashOpen.value = false;
     error.value = apiError(cause);
   } finally {
     checkingCash.value = false;
   }
+}
+function goToCashModule() {
+  showPayment.value = false;
+  void router.push("/caja");
 }
 function openCashNow() {
   openingBalance.value = 0;
@@ -379,6 +393,7 @@ async function openPayment() {
     return;
   }
   await checkCash();
+  if (pendingCashSession.value) return;
   if (!cashOpen.value) {
     error.value =
       "La caja está cerrada. Debes realizar la apertura de caja para comenzar a vender.";
@@ -489,8 +504,14 @@ async function createSale() {
     showSuccess.value = true;
     await loadCatalogs();
   } catch (cause) {
-    error.value = apiError(cause);
-    await checkCash();
+    const message = apiError(cause);
+    if (message.includes("SESSION_EXPIRED_PREVIOUS_DAY")) {
+      showPayment.value = false;
+      await checkCash();
+    } else {
+      error.value = message;
+      await checkCash();
+    }
   } finally {
     saving.value = false;
   }
@@ -557,7 +578,7 @@ async function saveQuote() {
     <span class="badge">POS</span>
   </div>
   <section
-    v-if="!checkingCash && !cashOpen"
+    v-if="!checkingCash && !cashOpen && !pendingCashSession"
     class="cash-closed-alert"
     role="alert"
   >
@@ -769,6 +790,22 @@ async function saveQuote() {
           }}
         </button>
       </form>
+    </section>
+  </div>
+  <div v-if="pendingCashSession" class="modal-backdrop">
+    <section class="modal cash-pending-modal" role="alertdialog" aria-modal="true" aria-labelledby="cash-pending-title">
+      <div class="modal-icon"><CircleAlert /></div>
+      <h2 id="cash-pending-title">Caja pendiente de cierre</h2>
+      <p>
+        Existe una sesión de caja abierta correspondiente al día
+        <strong>{{ new Date(pendingCashSession.openedAtUtc).toLocaleDateString("es-AR") }}</strong>.
+        Para continuar vendiendo, debés realizar el arqueo y cierre de esa caja y abrir una nueva sesión para el día de hoy.
+      </p>
+      <div class="modal-actions">
+        <button class="primary full" @click="goToCashModule">
+          <Wallet :size="17" />Ir a módulo de Caja
+        </button>
+      </div>
     </section>
   </div>
   <div
