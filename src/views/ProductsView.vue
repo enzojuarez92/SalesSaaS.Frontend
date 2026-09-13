@@ -17,12 +17,13 @@ import {
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-import type { Category, PagedResult, Product } from "../types/api";
+import type { Category, PagedResult, Product, Supplier } from "../types/api";
 import { nonNegative, requiredText } from "../utils/validation";
 const auth = useAuthStore(),
   tenant = useTenantStore();
 const products = ref<Product[]>([]),
   categories = ref<Category[]>([]),
+  suppliers = ref<Supplier[]>([]),
   page = ref(1),
   totalPages = ref(1),
   totalCount = ref(0),
@@ -36,6 +37,7 @@ const products = ref<Product[]>([]),
   showModal = ref(false),
   showAdjustment = ref(false),
   showCategoryModal = ref(false),
+  showSupplierModal = ref(false),
   skuInput = ref<HTMLInputElement | null>(null),
   editingId = ref<string | null>(null),
   adjusting = ref<Product | null>(null);
@@ -49,6 +51,7 @@ const form = reactive({
   stock: 0,
   minimumStockAlert: 0,
   categoryId: "",
+  supplierId: "",
 });
 const adjustment = reactive({
   warehouseId: "",
@@ -57,6 +60,7 @@ const adjustment = reactive({
   reason: "",
 });
 const quickCategory = reactive({ name: "", description: "" });
+const quickSupplier = reactive({ legalName: "", taxId: "", taxCondition: "Responsable Inscripto", email: "", phone: "", address: "" });
 const fieldErrors = reactive<Record<string, string>>({});
 const canManage = computed(() =>
   ["Owner", "Admin", "Warehouse"].includes(auth.user?.role || ""),
@@ -72,6 +76,14 @@ async function loadCategories() {
     ).data.filter((category) => category.isActive);
   } catch {
     categories.value = [];
+  }
+}
+async function loadSuppliers() {
+  if (!auth.tenantId || !canManage.value) return;
+  try {
+    suppliers.value = (await api.get<Supplier[]>("/suppliers", { params: { tenantId: auth.tenantId } })).data.filter(supplier => supplier.isActive);
+  } catch {
+    suppliers.value = [];
   }
 }
 async function load() {
@@ -115,6 +127,7 @@ function open(product?: Product) {
           stock: product.stock,
           minimumStockAlert: product.minimumStockAlert,
           categoryId: product.categoryId || "",
+          supplierId: product.supplierId || "",
         }
       : {
           sku: "",
@@ -126,6 +139,7 @@ function open(product?: Product) {
           stock: 0,
           minimumStockAlert: 0,
           categoryId: "",
+          supplierId: "",
         },
   );
   error.value = "";
@@ -184,6 +198,7 @@ async function save() {
       tenantId: auth.tenantId,
       ...form,
       categoryId: form.categoryId || null,
+      supplierId: form.supplierId || null,
       brandId: null,
       initialWarehouseId: editingId.value
         ? null
@@ -198,6 +213,30 @@ async function save() {
     showModal.value = false;
     success.value = "Producto guardado correctamente.";
     await load();
+  } catch (cause) {
+    error.value = apiError(cause);
+  } finally {
+    saving.value = false;
+  }
+}
+function openQuickSupplier() {
+  Object.assign(quickSupplier, { legalName: "", taxId: "", taxCondition: "Responsable Inscripto", email: "", phone: "", address: "" });
+  error.value = "";
+  showSupplierModal.value = true;
+}
+async function saveQuickSupplier() {
+  if (!quickSupplier.legalName.trim() || !quickSupplier.taxId.trim()) {
+    error.value = "Ingresá la razón social y el CUIT del proveedor.";
+    return;
+  }
+  saving.value = true;
+  error.value = "";
+  try {
+    const { data } = await api.post<{ id: string }>("/suppliers", { tenantId: auth.tenantId, ...quickSupplier, legalName: quickSupplier.legalName.trim(), taxId: quickSupplier.taxId.trim() });
+    await loadSuppliers();
+    form.supplierId = data.id;
+    showSupplierModal.value = false;
+    success.value = "Proveedor creado y asignado al producto.";
   } catch (cause) {
     error.value = apiError(cause);
   } finally {
@@ -279,6 +318,7 @@ watch(
     page.value = 1;
     void load();
     void loadCategories();
+    void loadSuppliers();
   },
   { immediate: true },
 );
@@ -467,6 +507,20 @@ watch(
               >
                 <Plus :size="17" /></button></span
           ></label>
+          <label class="wide"
+            >Proveedor<span class="category-field"
+              ><select v-model="form.supplierId">
+                <option value="">Sin proveedor</option>
+                <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">{{ supplier.legalName }}</option>
+              </select><button
+                v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
+                class="secondary icon-button"
+                type="button"
+                aria-label="Crear proveedor"
+                title="Crear proveedor"
+                @click="openQuickSupplier"
+              ><Plus :size="17" /></button></span
+          ></label>
         </div>
         <label
           >Descripción<textarea
@@ -586,6 +640,21 @@ watch(
             saving ? "Guardando…" : "Crear y asignar"
           }}
         </button>
+      </form>
+    </section>
+  </div>
+  <div v-if="showSupplierModal" class="modal-backdrop">
+    <section class="modal compact-modal">
+      <button class="icon-button modal-close" aria-label="Cerrar" @click="showSupplierModal = false"><X /></button>
+      <h2>Nuevo proveedor</h2>
+      <p>Se agregará a la lista y quedará seleccionado en este producto.</p>
+      <p v-if="error" class="error">{{ error }}</p>
+      <form novalidate @submit.prevent="saveQuickSupplier">
+        <label>Razón social<input v-model.trim="quickSupplier.legalName" required maxlength="150" autofocus /></label>
+        <label>CUIT<input v-model="quickSupplier.taxId" required inputmode="numeric" maxlength="11" /></label>
+        <label>Condición fiscal<select v-model="quickSupplier.taxCondition"><option>Responsable Inscripto</option><option>Monotributo</option><option>Exento</option></select></label>
+        <label>Email <small>Opcional</small><input v-model.trim="quickSupplier.email" type="email" /></label>
+        <button class="primary full" :disabled="saving"><LoaderCircle v-if="saving" class="spin" :size="16" />{{ saving ? "Creando…" : "Crear y asignar" }}</button>
       </form>
     </section>
   </div>

@@ -120,6 +120,7 @@ export interface Product {
   name: string;
   categoryId: string | null;
   brandId: string | null;
+  supplierId: string | null;
   description: string;
   price: number;
   cost: number;
@@ -176,6 +177,8 @@ export interface Supplier {
   taxId: string;
   taxCondition: string;
   email: string | null;
+  phone?: string | null;
+  address?: string | null;
   isActive: boolean;
 }
 

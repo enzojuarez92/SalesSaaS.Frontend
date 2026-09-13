@@ -9,25 +9,16 @@ import {
   Pencil,
   ScrollText,
   Save,
+  X,
 } from "lucide-vue-next";
 import { api, apiError, notify } from "../services/api";
 import { money, dateTime } from "../services/format";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-import type { Product, PagedResult } from "../types/api";
+import type { Product, PagedResult, Supplier } from "../types/api";
 const auth = useAuthStore(),
   tenant = useTenantStore();
-type Supplier = {
-  id: string;
-  legalName: string;
-  taxId: string;
-  taxCondition: string;
-  email: string;
-  phone?: string;
-  address?: string;
-  isActive: boolean;
-};
 type Purchase = {
   id: string;
   supplierId: string;
@@ -42,7 +33,9 @@ const tab = ref("orders"),
   products = ref<Product[]>([]),
   orders = ref<Purchase[]>([]),
   supplierId = ref(""),
-  editingSupplier = ref<Supplier | null>(null);
+  editingSupplier = ref<Supplier | null>(null),
+  showSupplierModal = ref(false),
+  selectCreatedSupplier = ref(false);
 const supplier = reactive({
   legalName: "",
   taxId: "",
@@ -123,14 +116,21 @@ async function receive(order: Purchase) {
   }, "Mercadería recibida y stock actualizado.");
 }
 async function createSupplier() {
+  const isEditing = Boolean(editingSupplier.value);
   await run(async () => {
+    let createdId = "";
     if (editingSupplier.value) await api.put(`/suppliers/${editingSupplier.value.id}`, { tenantId: auth.tenantId, id: editingSupplier.value.id, ...supplier });
-    else await api.post("/suppliers", { tenantId: auth.tenantId, ...supplier });
+    else createdId = (await api.post<{ id: string }>("/suppliers", { tenantId: auth.tenantId, ...supplier })).data.id;
     resetSupplier();
     await load();
-  }, editingSupplier.value ? "Proveedor actualizado." : "Proveedor creado.");
+    if (selectCreatedSupplier.value && createdId) supplierId.value = createdId;
+    showSupplierModal.value = false;
+    selectCreatedSupplier.value = false;
+  }, isEditing ? "Proveedor actualizado." : "Proveedor creado.");
 }
 function resetSupplier(target?: Supplier) { editingSupplier.value = target || null; supplier.legalName = target?.legalName || ""; supplier.taxId = target?.taxId || ""; supplier.taxCondition = target?.taxCondition || "Responsable Inscripto"; supplier.email = target?.email || ""; supplier.phone = target?.phone || ""; supplier.address = target?.address || ""; supplier.isActive = target?.isActive ?? true; }
+function openSupplier(target?: Supplier, assignAfterCreate = false) { resetSupplier(target); selectCreatedSupplier.value = !target && assignAfterCreate; showSupplierModal.value = true; }
+async function viewStatement(target: Supplier) { await run(async () => { statement.value = (await api.get(`/suppliers/${target.id}/account`, { params: { tenantId: auth.tenantId } })).data; }, undefined); }
 async function invoicePurchase() {
   await run(async () => {
     await api.post("/purchases/invoices", {
@@ -179,7 +179,7 @@ onMounted(() => run(load));
             {{ s.legalName }}
           </option>
         </select></label
-      ><button type="button" class="secondary" @click="resetSupplier(); tab = 'suppliers'"><Plus :size="16" />Nuevo proveedor</button></div>
+      ><button type="button" class="secondary" @click="openSupplier(undefined, true)"><Plus :size="16" />Nuevo proveedor</button></div>
       <div v-for="(line, i) in lines" :key="i" class="purchase-line">
         <label
           >Producto<select
@@ -285,39 +285,7 @@ onMounted(() => run(load));
     </form>
   </section>
   <section v-if="tab === 'suppliers'" class="panel">
-    <div class="section-heading"><h2>{{ editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2><button v-if="editingSupplier" type="button" class="secondary" @click="resetSupplier()">Cancelar edición</button></div>
-    <form
-      v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
-      novalidate
-      @submit.prevent="createSupplier"
-    >
-      <div class="form-grid">
-        <label
-          >Razón social<input
-            v-model.trim="supplier.legalName"
-            required
-            maxlength="150" /></label
-        ><label
-          >CUIT<input
-            v-model="supplier.taxId"
-            required
-            inputmode="numeric"
-            pattern="[0-9]{11}"
-            maxlength="11" /></label
-        ><label>Email<input v-model.trim="supplier.email" type="email" /></label
-        ><label>Teléfono<input v-model.trim="supplier.phone" maxlength="30" /></label
-        ><label class="wide-field">Dirección<input v-model.trim="supplier.address" maxlength="300" /></label
-        ><label
-          >Condición fiscal<select v-model="supplier.taxCondition">
-            <option>Responsable Inscripto</option>
-            <option>Monotributo</option>
-            <option>Exento</option>
-          </select></label
-        >
-      </div>
-      <label v-if="editingSupplier" class="supplier-active"><input v-model="supplier.isActive" type="checkbox" /><span><strong>Proveedor activo</strong><small>Podrá seleccionarse al crear nuevas órdenes de compra.</small></span></label>
-      <button class="primary icon-submit" :disabled="busy" :title="editingSupplier ? 'Guardar proveedor' : 'Crear proveedor'" :aria-label="editingSupplier ? 'Guardar proveedor' : 'Crear proveedor'"><Save :size="18" /><span class="sr-only">{{ editingSupplier ? 'Guardar proveedor' : 'Crear proveedor' }}</span></button>
-    </form>
+    <div class="section-heading"><div><h2>Proveedores</h2><p class="muted">Administrá los datos comerciales y consultá los movimientos de cuenta.</p></div><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="primary" @click="openSupplier()"><Plus :size="16" />Nuevo proveedor</button></div>
     <div class="responsive-table">
       <table>
         <thead>
@@ -338,23 +306,14 @@ onMounted(() => run(load));
             <td>{{ s.email }}</td>
             <td><span :class="s.isActive ? 'status success-status' : 'status danger'">{{ s.isActive ? 'Activo' : 'Inactivo' }}</span></td>
             <td>
-              <div class="supplier-actions"><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" class="icon-button" :disabled="busy" title="Editar proveedor" :aria-label="`Editar ${s.legalName}`" @click="resetSupplier(s)"><Pencil :size="17" /></button>
+              <div class="invoice-actions"><button v-if="['Owner', 'Admin'].includes(auth.user?.role || '')" :disabled="busy" title="Editar proveedor" :aria-label="`Editar ${s.legalName}`" @click="openSupplier(s)"><Pencil :size="16" /></button>
               <button
                 v-if="['Owner', 'Admin'].includes(auth.user?.role || '')"
-                class="icon-button"
                 :disabled="busy"
                 title="Ver movimientos de cuenta"
                 :aria-label="`Ver movimientos de ${s.legalName}`"
-                @click="
-                  run(async () => {
-                    statement = (
-                      await api.get(`/suppliers/${s.id}/account`, {
-                        params: { tenantId: auth.tenantId },
-                      })
-                    ).data;
-                  })
-                "
-              ><ScrollText :size="17" /></button></div>
+                @click="viewStatement(s)"
+              ><ScrollText :size="16" /></button></div>
             </td>
           </tr>
           <tr v-if="!suppliers.length">
@@ -368,6 +327,7 @@ onMounted(() => run(load));
       ><strong>{{ money(entry.amount) }}</strong>
     </article>
   </section>
+  <div v-if="showSupplierModal" class="modal-backdrop"><section class="modal supplier-modal"><button class="icon-button modal-close" aria-label="Cerrar" @click="showSupplierModal = false"><X /></button><h2>{{ editingSupplier ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2><p>Completá los datos comerciales del proveedor.</p><form novalidate @submit.prevent="createSupplier"><div class="form-grid"><label>Razón social<input v-model.trim="supplier.legalName" required maxlength="150" autofocus /></label><label>CUIT<input v-model="supplier.taxId" required inputmode="numeric" pattern="[0-9]{11}" maxlength="11" /></label><label>Email<input v-model.trim="supplier.email" type="email" /></label><label>Teléfono<input v-model.trim="supplier.phone" maxlength="30" /></label><label class="wide-field">Dirección<input v-model.trim="supplier.address" maxlength="300" /></label><label>Condición fiscal<select v-model="supplier.taxCondition"><option>Responsable Inscripto</option><option>Monotributo</option><option>Exento</option></select></label></div><label v-if="editingSupplier" class="supplier-active"><input v-model="supplier.isActive" type="checkbox" /><span><strong>Proveedor activo</strong><small>Podrá seleccionarse al crear nuevas órdenes de compra.</small></span></label><div class="modal-actions"><button type="button" class="secondary" @click="showSupplierModal = false">Cancelar</button><button class="primary" :disabled="busy"><Save :size="16" />{{ busy ? 'Guardando…' : 'Guardar proveedor' }}</button></div></form></section></div>
 </template>
 <style scoped>
 .purchase-line {
@@ -378,7 +338,7 @@ onMounted(() => run(load));
   margin: 0.8rem 0;
 }
 .tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{background:#ec4899;color:#fff;border-color:#ec4899}.supplier-picker{display:flex;align-items:end;gap:.75rem}.supplier-picker label{flex:1}
-.supplier-actions{display:flex;align-items:center;gap:.5rem}.supplier-active{display:flex;align-items:center;gap:.75rem;min-height:4.5rem;padding:.8rem 1rem;margin:.8rem 0;border:1px solid #e2e8f0;border-radius:.8rem;cursor:pointer}.supplier-active input{width:1.15rem;height:1.15rem;margin:0;accent-color:#ec4899}.supplier-active span{display:grid;gap:.2rem}.supplier-active small{color:#64748b}.icon-submit{width:3rem;display:grid;place-items:center}
+.supplier-active{display:flex;align-items:center;gap:.75rem;min-height:4.5rem;padding:.8rem 1rem;margin:.8rem 0;border:1px solid #e2e8f0;border-radius:.8rem;cursor:pointer}.supplier-active input{width:1.15rem;height:1.15rem;margin:0;accent-color:#ec4899}.supplier-active span{display:grid;gap:.2rem}.supplier-active small{color:#64748b}.supplier-modal{width:min(100%,42rem)}.modal-actions{display:flex;justify-content:flex-end;gap:.65rem;margin-top:1rem}
 h2 {
   margin: 1rem 0;
 }
