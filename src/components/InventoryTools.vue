@@ -41,6 +41,10 @@ const auth = useAuthStore(),
   quantity = ref(1),
   reference = ref("");
 async function transfer() {
+  if (quantity.value > currentStock.value) {
+    error.value = "El depósito de origen no tiene stock suficiente para la transferencia.";
+    return;
+  }
   await run(async () => {
     await api.post("/stock-movements/transfer", {
       tenantId: auth.tenantId,
@@ -171,7 +175,7 @@ watch(
         hay errores no se importa ninguna fila.</small
       ></template
     ><LoaderCircle v-if="busy" class="spin" />
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="error && !show" class="error" role="alert">{{ error }}</p>
     <p
       v-if="message"
       :class="errors.length ? 'error' : 'success'"
@@ -235,6 +239,7 @@ watch(
       </div>
       <form v-if="tenant.warehouses.length > 1" class="kardex-transfer" novalidate @submit.prevent="transfer">
         <h3><ArrowLeftRight :size="18" />Transferir stock</h3>
+        <p v-if="error" class="transfer-error" role="alert">{{ error }}</p>
         <div class="form-grid">
           <label
             >Destino<select v-model="destination" required>
@@ -340,6 +345,7 @@ watch(
   margin: 0 0 1rem;
   font-size: 1rem;
 }
+.transfer-error { margin: 0 0 1rem; color: #be123c; font-size: .875rem; }
 .transfer-button { display: inline-flex !important; align-items: center; justify-content: center; gap: .5rem; margin-top: 1rem; min-width: 11.5rem; white-space: nowrap; }
 .kardex-pagination { margin-top: 1rem; border-top: 1px solid #e2e8f0; }
 .kardex-pagination :deep(.table-pagination) { margin-top: 0; padding-top: 1rem; }
