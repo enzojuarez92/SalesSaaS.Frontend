@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { Download, Upload, History, X, LoaderCircle } from "lucide-vue-next";
+import { ArrowLeftRight, Download, Upload, History, X, LoaderCircle } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { download } from "../services/download";
 import { dateTime, number } from "../services/format";
@@ -186,11 +186,12 @@ watch(
   <div v-if="show" class="modal-backdrop">
     <section class="modal" style="width: min(95vw, 70rem); max-width: 70rem">
       <button
-        class="icon-button modal-close"
+        class="icon-button modal-close kardex-close"
         aria-label="Cerrar Kardex"
+        title="Cerrar"
         @click="show = false"
       >
-        <X />
+        <X :size="20" />
       </button>
       <h2>Kardex · {{ productName }}</h2>
       <p>
@@ -234,8 +235,8 @@ watch(
           </tbody>
         </table>
       </div>
-      <form v-if="tenant.warehouses.length > 1" novalidate @submit.prevent="transfer">
-        <h3>Transferir desde esta sucursal</h3>
+      <form v-if="tenant.warehouses.length > 1" class="kardex-transfer" novalidate @submit.prevent="transfer">
+        <h3><ArrowLeftRight :size="18" />Transferir stock</h3>
         <div class="form-grid">
           <label
             >Destino<select v-model="destination" required>
@@ -261,17 +262,17 @@ watch(
             >Referencia<input v-model.trim="reference" maxlength="100" required
           /></label>
         </div>
-        <button class="primary" :disabled="busy">Transferir stock</button>
+        <button class="primary transfer-button" :disabled="busy"><ArrowLeftRight :size="17" />Transferir stock</button>
       </form>
-      <TablePaginator
-        :page="page"
-        :total-pages="Math.max(1, Math.ceil(count / 50))"
-        :total-count="count"
-        :shown-count="rows.length"
-        :page-size="50"
-        @previous="page--; ledger()"
-        @next="page++; ledger()"
-      />
+      <div class="kardex-pagination"><TablePaginator
+          :page="page"
+          :total-pages="Math.max(1, Math.ceil(count / 50))"
+          :total-count="count"
+          :shown-count="rows.length"
+          :page-size="50"
+          @previous="page--; ledger()"
+          @next="page++; ledger()"
+        /></div>
     </section>
   </div>
 </template>
@@ -309,5 +310,38 @@ watch(
   height: 31px;
   min-width: 31px;
   padding: 0;
+}
+.kardex-close {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid #dbe3ef;
+  background: #fff;
+  color: #64748b;
+}
+.kardex-close:hover { color: #e11d48; background: #fff1f2; border-color: #f9a8d4; }
+.kardex-transfer {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: .85rem;
+  background: #f8fafc;
+}
+.kardex-transfer h3 {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+.transfer-button { margin-top: 1rem; min-width: 11.5rem; }
+.kardex-pagination { margin-top: 1rem; border-top: 1px solid #e2e8f0; }
+.kardex-pagination :deep(.table-pagination) { margin-top: 0; padding-top: 1rem; }
+.kardex-pagination :deep(.pagination-controls) { gap: .6rem; }
+.kardex-pagination :deep(.pagination-controls .secondary) { min-width: 5.75rem; padding: .55rem .8rem; }
+@media (max-width: 640px) {
+  .kardex-pagination :deep(.table-pagination) { align-items: flex-start; flex-direction: column; }
+  .kardex-pagination :deep(.pagination-controls) { width: 100%; justify-content: space-between; }
+  .transfer-button { width: 100%; }
 }
 </style>
