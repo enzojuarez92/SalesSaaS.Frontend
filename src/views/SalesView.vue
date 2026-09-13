@@ -4,6 +4,8 @@ import CurrencyInput from "../components/CurrencyInput.vue";
 import { computed, ref, watch } from "vue";
 import {
   CheckCircle2,
+  Banknote,
+  CircleEllipsis,
   CircleAlert,
   CreditCard,
   DoorOpen,
@@ -20,7 +22,9 @@ import {
   Printer,
   Mail,
   MessageCircle,
+  Smartphone,
 } from "lucide-vue-next";
+import { paymentMethodLabel, paymentMethodOptions } from "../constants/paymentMethods";
 import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
@@ -119,12 +123,14 @@ const availableCredit = computed(() =>
 const canUseAccount = computed(() =>
   Boolean(selectedCustomer.value?.allowCredit) && total.value <= availableCredit.value,
 );
-const paymentOptions = [
-  { value: 1, label: "Efectivo", icon: Wallet },
-  { value: 4, label: "Transferencia", icon: Landmark },
-  { value: 2, label: "Tarjeta", icon: CreditCard },
-  { value: 6, label: "Cuenta corriente", icon: Wallet },
-];
+const paymentIcons = {
+  1: Banknote, 2: CreditCard, 3: CreditCard, 4: Landmark,
+  5: Smartphone, 6: Wallet, 7: Smartphone, 8: CircleEllipsis,
+};
+const paymentOptions = paymentMethodOptions.map((option) => ({
+  ...option,
+  icon: paymentIcons[option.value],
+}));
 async function loadCatalogs() {
   if (!auth.tenantId) return;
   loading.value = true;
@@ -427,7 +433,7 @@ async function createSale() {
       );
     issuedOrderId.value = orderId;
     issuedTotal.value = saleTotal;
-    saleSummary.value = `Venta registrada por ${money(saleTotal)} con ${paymentOptions.find((option) => option.value === payment.value)?.label.toLowerCase()}.`;
+    saleSummary.value = `Venta registrada por ${money(saleTotal)} con ${paymentMethodLabel(payment.value).toLowerCase()}.`;
     success.value = saleSummary.value;
     cart.value = [];
     activeQuoteId.value = "";
