@@ -30,16 +30,23 @@ const productName = ref("");
 const productSku = ref("");
 const currentStock = ref(0);
 const page = ref(1);
+const pageSize = 15;
 const count = ref(0);
 const loading = ref(false);
 const transferring = ref(false);
 const error = ref("");
-const from = ref("");
-const to = ref("");
+function inputDate(daysFromToday = 0) {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+const from = ref(inputDate(-14));
+const to = ref(inputDate());
 const movementType = ref("");
 const destination = ref("");
 const quantity = ref(1);
 const reference = ref("");
+const showTransferConfirmation = ref(false);
 
 const types: Record<number, string> = {
   1: "Entrada / compra",
@@ -49,12 +56,15 @@ const types: Record<number, string> = {
   5: "Transferencia saliente",
   6: "Transferencia entrante",
 };
-const totalPages = computed(() => Math.max(1, Math.ceil(count.value / 50)));
+const totalPages = computed(() => Math.max(1, Math.ceil(count.value / pageSize)));
 const destinations = computed(() =>
   tenant.warehouses.filter((warehouse) => warehouse.id !== tenant.activeWarehouseId),
 );
 const activeWarehouseName = computed(() =>
   tenant.warehouses.find((warehouse) => warehouse.id === tenant.activeWarehouseId)?.name || "la sucursal activa",
+);
+const destinationName = computed(() =>
+  destinations.value.find((warehouse) => warehouse.id === destination.value)?.name || "el depósito seleccionado",
 );
 
 function boundary(value: string, end: boolean) {
@@ -70,7 +80,7 @@ async function load() {
     const { data } = await api.get(`/inventory-tools/products/${productId.value}/kardex`, {
       params: {
         page: page.value,
-        pageSize: 50,
+        pageSize,
         fromUtc: boundary(from.value, false),
         toUtc: boundary(to.value, true),
         type: movementType.value || undefined,
@@ -88,19 +98,7 @@ async function load() {
   }
 }
 
-function applyFilters() {
-  page.value = 1;
-  void load();
-}
-
-function clearFilters() {
-  from.value = "";
-  to.value = "";
-  movementType.value = "";
-  applyFilters();
-}
-
-async function transfer() {
+function requestTransfer() {
   if (!destination.value) {
     error.value = "Seleccioná el depósito de destino.";
     return;
@@ -109,10 +107,19 @@ async function transfer() {
     error.value = "Ingresá una cantidad entera mayor a cero.";
     return;
   }
+  if (!reference.value.trim()) {
+    error.value = "Ingresá una referencia para la transferencia.";
+    return;
+  }
   if (quantity.value > currentStock.value) {
     error.value = "El depósito de origen no tiene stock suficiente para la transferencia.";
     return;
   }
+  showTransferConfirmation.value = true;
+}
+
+async function transfer() {
+  showTransferConfirmation.value = false;
   transferring.value = true;
   error.value = "";
   try {
@@ -144,6 +151,15 @@ watch(
   },
   { immediate: true },
 );
+
+let filterTimer: number | undefined;
+watch([from, to, movementType], () => {
+  window.clearTimeout(filterTimer);
+  filterTimer = window.setTimeout(() => {
+    page.value = 1;
+    void load();
+  }, 250);
+});
 </script>
 
 <template>
@@ -176,7 +192,6 @@ watch(
       <label>Desde<input v-model="from" type="date" :max="to || undefined" /></label>
       <label>Hasta<input v-model="to" type="date" :min="from || undefined" /></label>
       <label>Movimiento<select v-model="movementType"><option value="">Todos los movimientos</option><option v-for="(label, value) in types" :key="value" :value="value">{{ label }}</option></select></label>
-      <div class="filter-actions"><button class="secondary" @click="clearFilters">Limpiar</button><button class="primary" @click="applyFilters"><Filter :size="16" />Aplicar filtros</button></div>
     </div>
   </section>
 
@@ -199,39 +214,47 @@ watch(
         </tbody>
       </table>
     </div>
-    <TablePaginator :page="page" :total-pages="totalPages" :total-count="count" :shown-count="rows.length" :page-size="50" @previous="page--; load()" @next="page++; load()" />
+    <TablePaginator :page="page" :total-pages="totalPages" :total-count="count" :shown-count="rows.length" :page-size="pageSize" @previous="page--; load()" @next="page++; load()" />
   </section>
 
   <section v-if="destinations.length" class="panel transfer-panel">
     <div class="section-title"><ArrowLeftRight :size="19" /><div><h2>Transferir stock</h2><p>Mové unidades desde {{ activeWarehouseName }} a otro depósito.</p></div></div>
-    <form class="form-grid transfer-form" novalidate @submit.prevent="transfer">
+    <form class="form-grid transfer-form" novalidate @submit.prevent="requestTransfer">
       <label>Depósito de destino<select v-model="destination" required><option value="" disabled>Seleccionar depósito</option><option v-for="warehouse in destinations" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select></label>
       <label>Unidades<input v-model.number="quantity" type="number" min="1" step="1" required /></label>
       <label>Referencia<input v-model.trim="reference" maxlength="100" placeholder="Motivo o referencia" required /></label>
       <div class="transfer-submit"><button class="primary" :disabled="transferring"><ArrowLeftRight :size="17" />{{ transferring ? "Transfiriendo…" : "Transferir stock" }}</button></div>
     </form>
   </section>
+
+  <div v-if="showTransferConfirmation" class="modal-backdrop">
+    <section class="modal transfer-confirmation" role="dialog" aria-modal="true" aria-labelledby="transfer-confirmation-title">
+      <h2 id="transfer-confirmation-title">Confirmar transferencia</h2>
+      <p>Estás por transferir <strong>{{ number(quantity) }} {{ quantity === 1 ? "unidad" : "unidades" }}</strong> de <strong>{{ productName }}</strong> desde <strong>{{ activeWarehouseName }}</strong> hacia <strong>{{ destinationName }}</strong>.</p>
+      <p class="muted">El stock se actualizará en ambos depósitos al confirmar.</p>
+      <div class="modal-actions"><button class="secondary" :disabled="transferring" @click="showTransferConfirmation = false">Cancelar</button><button class="primary" :disabled="transferring" @click="transfer"><ArrowLeftRight :size="17" />{{ transferring ? "Transfiriendo…" : "Confirmar transferencia" }}</button></div>
+    </section>
+  </div>
 </template>
 
 <style scoped>
 .kardex-page-heading { align-items: flex-start; }
 .kardex-heading-actions { display: flex; gap: .75rem; align-items: center; }
-.current-stock { display: grid; min-width: 8.5rem; padding: .65rem .9rem; text-align: right; border: 1px solid #f9a8d4; border-radius: .75rem; background: #fdf2f8; }
+.current-stock { display: flex; align-items: baseline; gap: .4rem; min-width: max-content; padding: .8rem .95rem; white-space: nowrap; border: 1px solid #f9a8d4; border-radius: .75rem; background: #fdf2f8; }
 .current-stock span { color: #9d174d; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.current-stock strong { color: #be185d; font-size: 1.45rem; line-height: 1.1; }
+.current-stock strong { color: #be185d; font-size: 1.45rem; line-height: 1; }
 .current-stock small { color: #9d174d; }
 .kardex-filter-panel, .kardex-table-panel, .transfer-panel { margin-top: 1rem; }
 .section-title { display: flex; gap: .65rem; align-items: flex-start; margin-bottom: 1rem; }
 .section-title svg { color: #db2777; margin-top: .15rem; }
 .section-title h2, .table-panel-heading h2 { margin: 0; font-size: 1.1rem; }
 .section-title p, .table-panel-heading p { margin: .25rem 0 0; color: #64748b; font-size: .875rem; }
-.kardex-filters { align-items: end; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.filter-actions { display: flex; gap: .6rem; align-items: end; }
-.filter-actions button { flex: 1; white-space: nowrap; }
+.kardex-filters { align-items: end; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .table-panel-heading { margin-bottom: 1rem; }
 .transfer-form { align-items: end; grid-template-columns: 1.2fr .7fr 1.2fr auto; }
 .transfer-submit { display: flex; align-items: end; }
 .transfer-submit button { white-space: nowrap; }
+.transfer-confirmation { width: min(92vw, 34rem); }.transfer-confirmation h2 { margin-top: 0; }.transfer-confirmation p { line-height: 1.55; }.modal-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.25rem; }
 @media (max-width: 900px) { .kardex-filters, .transfer-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .kardex-page-heading, .kardex-heading-actions { flex-direction: column; align-items: stretch; }.current-stock { text-align: left; }.kardex-filters, .transfer-form { grid-template-columns: 1fr; }.filter-actions { width: 100%; }.transfer-submit button { width: 100%; } }
+@media (max-width: 640px) { .kardex-page-heading, .kardex-heading-actions { flex-direction: column; align-items: stretch; }.kardex-filters, .transfer-form { grid-template-columns: 1fr; }.transfer-submit button { width: 100%; }.modal-actions { flex-direction: column-reverse; }.modal-actions button { width: 100%; } }
 </style>

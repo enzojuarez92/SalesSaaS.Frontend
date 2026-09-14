@@ -34,7 +34,7 @@ const params = () => ({
   fromUtc: from.value ? `${from.value}T00:00:00` : undefined,
   toUtc: to.value ? `${to.value}T23:59:59.999` : undefined,
   pageNumber: page.value,
-  pageSize: 25,
+  pageSize: 15,
 });
 
 async function load() {

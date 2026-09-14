@@ -5,6 +5,7 @@ import { api, apiError, notify } from "../services/api";
 import { dateTime, money } from "../services/format";
 import { getPrintBusiness, printReceipt } from "../services/receiptPrint";
 import CurrencyInput from "../components/CurrencyInput.vue";
+import TablePaginator from "../components/TablePaginator.vue";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type { PagedResult, Product, Supplier } from "../types/api";
@@ -23,6 +24,12 @@ const tab = ref<"orders" | "invoices" | "suppliers">("orders");
 const busy = ref(false);
 const orders = ref<Purchase[]>([]);
 const invoices = ref<PurchaseInvoice[]>([]);
+const orderResult = ref<PagedResult<Purchase> | null>(null);
+const invoiceResult = ref<PagedResult<PurchaseInvoice> | null>(null);
+const ordersPage = ref(1);
+const invoicesPage = ref(1);
+const suppliersPage = ref(1);
+const tablePageSize = 15;
 const suppliers = ref<Supplier[]>([]);
 const products = ref<Product[]>([]);
 const showOrderModal = ref(false);
@@ -46,6 +53,8 @@ const isAdmin = computed(() => ["Owner", "Admin"].includes(auth.user?.role || ""
 const total = computed(() => lines.value.reduce((sum, line) => sum + line.quantity * line.unitCost, 0));
 const receiptTotal = computed(() => receiptLines.value.reduce((sum, line) => sum + line.quantity * line.unitCost, 0));
 const activeSuppliers = computed(() => suppliers.value.filter(item => item.isActive));
+const suppliersTotalPages = computed(() => Math.max(1, Math.ceil(suppliers.value.length / tablePageSize)));
+const pagedSuppliers = computed(() => suppliers.value.slice((suppliersPage.value - 1) * tablePageSize, suppliersPage.value * tablePageSize));
 const selectableProducts = computed(() => supplierId.value ? products.value.filter(item => item.supplierId === supplierId.value) : products.value);
 const supplierName = (id: string) => suppliers.value.find(item => item.id === id)?.legalName || "Proveedor eliminado";
 const productSupplierName = (product: Product) => product.supplierId ? supplierName(product.supplierId) : "Sin proveedor";
@@ -67,13 +76,15 @@ async function load() {
   try {
     const params = { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId, pageSize: 100 };
     const [orderResponse, invoiceResponse, supplierResponse, productResponse] = await Promise.all([
-      api.get<Purchase[]>("/purchases/orders"),
-      api.get<PurchaseInvoice[]>("/purchases/invoices"),
+      api.get<PagedResult<Purchase>>("/purchases/orders", { params: { page: ordersPage.value, pageSize: tablePageSize } }),
+      api.get<PagedResult<PurchaseInvoice>>("/purchases/invoices", { params: { page: invoicesPage.value, pageSize: tablePageSize } }),
       api.get<Supplier[]>("/suppliers", { params }),
       api.get<PagedResult<Product>>("/products", { params }),
     ]);
-    orders.value = orderResponse.data;
-    invoices.value = invoiceResponse.data;
+    orderResult.value = orderResponse.data;
+    invoiceResult.value = invoiceResponse.data;
+    orders.value = orderResponse.data.items;
+    invoices.value = invoiceResponse.data.items;
     suppliers.value = supplierResponse.data;
     products.value = productResponse.data.items;
   } catch (cause) { notify(apiError(cause), true); }
@@ -255,7 +266,7 @@ watch([() => auth.tenantId, () => tenant.activeWarehouseId], () => void load(), 
     <div class="responsive-table"><table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
       <tr v-for="order in orders" :key="order.id"><td>{{ dateTime(order.createdAtUtc) }}</td><td>{{ supplierName(order.supplierId) }}</td><td>{{ money(order.totalAmount) }}</td><td><span class="status" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td><td><div class="order-actions"><span class="invoice-actions"><button title="Ver detalle" aria-label="Ver detalle de la orden" @click="viewOrder(order)"><Eye :size="16" /></button><button title="Imprimir / Exportar PDF" aria-label="Imprimir orden de compra" @click="printOrder(order)"><Printer :size="16" /></button></span><button v-if="order.status === 'PendingAuthorization' && isAdmin" class="secondary" @click="authorize(order)"><Check :size="16" />Autorizar</button><button v-if="order.status === 'PendingAuthorization' && (isAdmin || order.createdByUserId === auth.user?.id)" class="secondary danger-action" @click="cancel(order)"><Ban :size="16" />Anular</button><button v-if="['PendingReceipt','Draft'].includes(order.status)" class="secondary" @click="openReceipt(order)"><PackageCheck :size="16" />Recibir mercadería</button><button v-if="order.status === 'Received' && !order.invoiced" class="secondary" @click="openInvoice(order)"><FilePlus2 :size="16" />Registrar factura</button></div></td></tr>
       <tr v-if="!orders.length"><td colspan="5" class="empty-small">Todavía no hay órdenes de compra.</td></tr>
-    </tbody></table></div>
+    </tbody></table></div><TablePaginator v-if="orderResult" :page="ordersPage" :total-pages="orderResult.totalPages" :total-count="orderResult.totalCount" :shown-count="orders.length" :page-size="tablePageSize" @previous="ordersPage--; load()" @next="ordersPage++; load()" />
   </section>
 
   <section v-if="tab === 'invoices'" class="panel">
@@ -263,12 +274,12 @@ watch([() => auth.tenantId, () => tenant.activeWarehouseId], () => void load(), 
     <div class="responsive-table"><table><thead><tr><th>N.º factura</th><th>Proveedor</th><th>Fecha</th><th>Total</th><th>Acciones</th></tr></thead><tbody>
       <tr v-for="invoice in invoices" :key="invoice.id"><td><strong>{{ invoice.number }}</strong></td><td>{{ invoice.supplier }}</td><td>{{ dateTime(invoice.issuedAtUtc) }}</td><td>{{ money(invoice.totalAmount) }}</td><td><div class="invoice-actions"><button :title="invoice.hasAttachment ? 'Abrir PDF adjunto' : 'Ver detalle'" :aria-label="`Ver factura ${invoice.number}`" @click="viewInvoice(invoice)"><Eye :size="16" /></button><label class="icon-upload" title="Adjuntar PDF"><Paperclip :size="16" /><input type="file" accept="application/pdf,.pdf" @change="uploadAttachment(invoice, $event)" /></label></div></td></tr>
       <tr v-if="!invoices.length"><td colspan="5" class="empty-small">Todavía no hay facturas de proveedores registradas.</td></tr>
-    </tbody></table></div>
+    </tbody></table></div><TablePaginator v-if="invoiceResult" :page="invoicesPage" :total-pages="invoiceResult.totalPages" :total-count="invoiceResult.totalCount" :shown-count="invoices.length" :page-size="tablePageSize" @previous="invoicesPage--; load()" @next="invoicesPage++; load()" />
   </section>
 
   <section v-if="tab === 'suppliers'" class="panel">
     <div class="section-heading"><div><h2>Proveedores</h2><p class="muted">Datos comerciales y movimientos de cuenta.</p></div><button v-if="isAdmin" class="primary" @click="openSupplier()"><Plus :size="16" />Nuevo proveedor</button></div>
-    <div class="responsive-table"><table><thead><tr><th>Proveedor</th><th>CUIT</th><th>Contacto</th><th>Email</th><th>Estado</th><th>Acciones</th></tr></thead><tbody><tr v-for="item in suppliers" :key="item.id"><td>{{ item.legalName }}</td><td>{{ item.taxId }}</td><td>{{ item.phone || 'Sin teléfono' }}<small>{{ item.address || 'Sin dirección' }}</small></td><td>{{ item.email || '—' }}</td><td><span class="status" :class="item.isActive ? 'success-status' : 'danger'">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span></td><td><div class="invoice-actions"><button v-if="isAdmin" title="Editar proveedor" @click="openSupplier(item)"><Pencil :size="16" /></button><button v-if="isAdmin" title="Ver movimientos de cuenta" @click="viewStatement(item)"><ScrollText :size="16" /></button></div></td></tr></tbody></table></div>
+    <div class="responsive-table"><table><thead><tr><th>Proveedor</th><th>CUIT</th><th>Contacto</th><th>Email</th><th>Estado</th><th>Acciones</th></tr></thead><tbody><tr v-for="item in pagedSuppliers" :key="item.id"><td>{{ item.legalName }}</td><td>{{ item.taxId }}</td><td>{{ item.phone || 'Sin teléfono' }}<small>{{ item.address || 'Sin dirección' }}</small></td><td>{{ item.email || '—' }}</td><td><span class="status" :class="item.isActive ? 'success-status' : 'danger'">{{ item.isActive ? 'Activo' : 'Inactivo' }}</span></td><td><div class="invoice-actions"><button v-if="isAdmin" title="Editar proveedor" @click="openSupplier(item)"><Pencil :size="16" /></button><button v-if="isAdmin" title="Ver movimientos de cuenta" @click="viewStatement(item)"><ScrollText :size="16" /></button></div></td></tr><tr v-if="!suppliers.length"><td colspan="6" class="empty-small">Todavía no hay proveedores registrados.</td></tr></tbody></table></div><TablePaginator :page="suppliersPage" :total-pages="suppliersTotalPages" :total-count="suppliers.length" :shown-count="pagedSuppliers.length" :page-size="tablePageSize" @previous="suppliersPage--" @next="suppliersPage++" />
     <article v-for="entry in statement" :key="entry.id" class="statement-line"><span>{{ dateTime(entry.occurredAtUtc) }} · {{ entry.description }}</span><strong>{{ money(entry.amount) }}</strong></article>
   </section>
 
