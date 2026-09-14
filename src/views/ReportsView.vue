@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { money } from "../services/format";
 import { computed, ref, watch } from "vue";
-import { Download, FileText, Package, ShieldCheck } from "lucide-vue-next";
+import { Download, FileText, Package, Printer, ShieldCheck } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
@@ -63,6 +63,9 @@ async function excel() {
     exporting.value = false;
   }
 }
+function printReport() {
+  window.print();
+}
 watch(() => auth.tenantId, load, { immediate: true });
 watch(() => tenant.activeWarehouseId, load);
 </script>
@@ -74,19 +77,20 @@ watch(() => tenant.activeWarehouseId, load);
       <p>Ventas, inventario y trazabilidad.</p>
     </div>
   </div>
-  <div class="tabs">
-    <button @click="tab = 'sales'">Ventas e IVA</button
-    ><button @click="tab = 'inventory'">Inventario</button
-    ><button @click="tab = 'audit'">Auditoría</button>
+  <div class="tabs report-tabs" role="tablist" aria-label="Tipo de reporte">
+    <button type="button" role="tab" :aria-selected="tab === 'sales'" :class="{ active: tab === 'sales' }" @click="tab = 'sales'">Ventas e IVA</button
+    ><button type="button" role="tab" :aria-selected="tab === 'inventory'" :class="{ active: tab === 'inventory' }" @click="tab = 'inventory'">Inventario</button
+    ><button type="button" role="tab" :aria-selected="tab === 'audit'" :class="{ active: tab === 'audit' }" @click="tab = 'audit'">Auditoría</button>
   </div>
-  <section class="panel">
-    <div class="inventory-toolbar">
+  <section class="panel report-panel">
+    <div class="report-toolbar">
       <label>Desde<input v-model="from" type="date" /></label
       ><label>Hasta<input v-model="to" type="date" /></label
       ><label v-if="tab === 'sales'">Medio de pago<select v-model.number="paymentMethod"><option value="">Todos</option><option v-for="option in paymentOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label
-      ><button class="secondary" @click="load">Aplicar</button
+      ><button type="button" class="secondary" @click="load">Aplicar</button
       ><button
         v-if="tab === 'sales'"
+        type="button"
         class="primary"
         :disabled="exporting"
         @click="excel"
@@ -94,7 +98,7 @@ watch(() => tenant.activeWarehouseId, load);
         <Download :size="16" />{{
           exporting ? "Generando…" : "Exportar Excel (.xlsx)"
         }}
-      </button>
+      </button><button v-if="tab === 'sales'" type="button" class="secondary" @click="printReport"><Printer :size="16" />Imprimir / Exportar PDF</button>
     </div>
     <p v-if="error" class="error">{{ error }}</p>
     <div v-if="tab === 'sales'" class="responsive-table">
@@ -154,4 +158,20 @@ watch(() => tenant.activeWarehouseId, load);
 </template>
 <style scoped>
 .payment-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.65rem;margin:0 0 1rem}.payment-summary article{display:grid;gap:.2rem;padding:.75rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#f8fafc}.payment-summary small{color:#64748b}.payment-summary strong{color:#0f172a}
+.report-tabs { display:flex; flex-wrap:wrap; gap:.6rem; margin-bottom:1rem; }
+.report-tabs button { padding:.65rem 1rem; border:1px solid #dbe3ef; border-radius:.65rem; background:#fff; color:#475569; font-weight:650; }
+.report-tabs button:hover { border-color:#f9a8d4; color:#be185d; background:#fdf2f8; }
+.report-tabs button.active { border-color:#ec4899; background:#ec4899; color:#fff; box-shadow:0 6px 14px #ec489933; }
+.report-toolbar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:1rem; }
+.report-toolbar label { flex:1 1 10.5rem; min-width:0; }
+.report-toolbar label:has(select) { flex-basis:13rem; }
+.report-toolbar input, .report-toolbar select, .report-toolbar button { height:2.75rem; }
+.report-toolbar button { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; align-self:flex-end; white-space:nowrap; }
+:global(.dark) .report-tabs button { background:#172033; border-color:#40516d; color:#c8d4e6; }
+:global(.dark) .report-tabs button:hover { background:#243047; border-color:#f472b6; color:#fbcfe8; }
+:global(.dark) .report-tabs button.active { background:#be185d; border-color:#ec4899; color:#fff; }
+:global(.dark) .payment-summary article { background:#1b2940; border-color:#35445d; }
+:global(.dark) .payment-summary strong { color:#f8fafc; }
+@media (max-width:760px) { .report-toolbar > * { flex:1 1 100%; } .report-toolbar button { width:100%; } }
+@media print { :global(.sidebar), :global(.topbar), :global(.app-footer), .page-heading, .report-tabs, .report-toolbar { display:none !important; } :global(.page-content) { padding:0 !important; background:#fff !important; } .report-panel { padding:0; border:0; box-shadow:none; background:#fff !important; color:#0f172a !important; } .report-panel :deep(*) { color:#0f172a !important; } .payment-summary article { background:#fff !important; } }
 </style>
