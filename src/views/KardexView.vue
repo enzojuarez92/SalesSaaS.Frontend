@@ -46,6 +46,7 @@ const movementType = ref("");
 const destination = ref("");
 const quantity = ref(1);
 const reference = ref("");
+const referenceError = ref("");
 const showTransferConfirmation = ref(false);
 
 const types: Record<number, string> = {
@@ -99,6 +100,8 @@ async function load() {
 }
 
 function requestTransfer() {
+  error.value = "";
+  referenceError.value = "";
   if (!destination.value) {
     error.value = "Seleccioná el depósito de destino.";
     return;
@@ -108,7 +111,7 @@ function requestTransfer() {
     return;
   }
   if (!reference.value.trim()) {
-    error.value = "Ingresá una referencia para la transferencia.";
+    referenceError.value = "Ingresá una referencia para la transferencia.";
     return;
   }
   if (quantity.value > currentStock.value) {
@@ -222,7 +225,7 @@ watch([from, to, movementType], () => {
     <form class="form-grid transfer-form" novalidate @submit.prevent="requestTransfer">
       <label>Depósito de destino<select v-model="destination" required><option value="" disabled>Seleccionar depósito</option><option v-for="warehouse in destinations" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select></label>
       <label>Unidades<input v-model.number="quantity" type="number" min="1" step="1" required /></label>
-      <label>Referencia<input v-model.trim="reference" maxlength="100" placeholder="Motivo o referencia" required /></label>
+      <label>Referencia<input v-model.trim="reference" maxlength="100" placeholder="Motivo o referencia" required :aria-invalid="!!referenceError" @input="referenceError = ''" /><small v-if="referenceError" class="field-error" role="alert">{{ referenceError }}</small></label>
       <div class="transfer-submit"><button class="primary" :disabled="transferring"><ArrowLeftRight :size="17" />{{ transferring ? "Transfiriendo…" : "Transferir stock" }}</button></div>
     </form>
   </section>
@@ -238,7 +241,7 @@ watch([from, to, movementType], () => {
 </template>
 
 <style scoped>
-.kardex-page-heading { align-items: flex-start; }
+.kardex-page-heading { align-items: flex-end; }
 .kardex-heading-actions { display: flex; gap: .75rem; align-items: center; }
 .current-stock { display: flex; align-items: baseline; gap: .4rem; min-width: max-content; padding: .8rem .95rem; white-space: nowrap; border: 1px solid #f9a8d4; border-radius: .75rem; background: #fdf2f8; }
 .current-stock span { color: #9d174d; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }

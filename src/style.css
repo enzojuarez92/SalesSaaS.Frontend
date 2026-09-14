@@ -203,6 +203,11 @@ form {
   font-weight: 500;
   line-height: 1.35;
 }
+.dark .error {
+  border: 1px solid #9f1239;
+  background: #3b1726;
+  color: #fecdd3;
+}
 input[aria-invalid="true"],
 select[aria-invalid="true"],
 textarea[aria-invalid="true"] {
