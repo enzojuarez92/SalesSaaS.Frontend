@@ -46,6 +46,8 @@ const movementType = ref("");
 const destination = ref("");
 const quantity = ref(1);
 const reference = ref("");
+const destinationError = ref("");
+const quantityError = ref("");
 const referenceError = ref("");
 const showTransferConfirmation = ref(false);
 
@@ -101,13 +103,15 @@ async function load() {
 
 function requestTransfer() {
   error.value = "";
+  destinationError.value = "";
+  quantityError.value = "";
   referenceError.value = "";
   if (!destination.value) {
-    error.value = "Seleccioná el depósito de destino.";
+    destinationError.value = "Seleccioná el depósito de destino.";
     return;
   }
   if (!Number.isInteger(quantity.value) || quantity.value < 1) {
-    error.value = "Ingresá una cantidad entera mayor a cero.";
+    quantityError.value = "Ingresá una cantidad entera mayor a cero.";
     return;
   }
   if (!reference.value.trim()) {
@@ -115,7 +119,7 @@ function requestTransfer() {
     return;
   }
   if (quantity.value > currentStock.value) {
-    error.value = "El depósito de origen no tiene stock suficiente para la transferencia.";
+    quantityError.value = "El depósito de origen no tiene stock suficiente para la transferencia.";
     return;
   }
   showTransferConfirmation.value = true;
@@ -223,9 +227,9 @@ watch([from, to, movementType], () => {
   <section v-if="destinations.length" class="panel transfer-panel">
     <div class="section-title"><ArrowLeftRight :size="19" /><div><h2>Transferir stock</h2><p>Mové unidades desde {{ activeWarehouseName }} a otro depósito.</p></div></div>
     <form class="form-grid transfer-form" novalidate @submit.prevent="requestTransfer">
-      <label>Depósito de destino<select v-model="destination" required><option value="" disabled>Seleccionar depósito</option><option v-for="warehouse in destinations" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select></label>
-      <label>Unidades<input v-model.number="quantity" type="number" min="1" step="1" required /></label>
-      <label>Referencia<input v-model.trim="reference" maxlength="100" placeholder="Motivo o referencia" required :aria-invalid="!!referenceError" @input="referenceError = ''" /><small v-if="referenceError" class="field-error" role="alert">{{ referenceError }}</small></label>
+      <label class="transfer-field">Depósito de destino<select v-model="destination" required :aria-invalid="!!destinationError" @change="destinationError = ''"><option value="" disabled>Seleccionar depósito</option><option v-for="warehouse in destinations" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select><small v-if="destinationError" class="field-error" role="alert">{{ destinationError }}</small></label>
+      <label class="transfer-field">Unidades<input v-model.number="quantity" type="number" min="1" step="1" required :aria-invalid="!!quantityError" @input="quantityError = ''" /><small v-if="quantityError" class="field-error" role="alert">{{ quantityError }}</small></label>
+      <label class="transfer-field">Referencia<input v-model.trim="reference" maxlength="100" placeholder="Motivo o referencia" required :aria-invalid="!!referenceError" @input="referenceError = ''" /><small v-if="referenceError" class="field-error" role="alert">{{ referenceError }}</small></label>
       <div class="transfer-submit"><button class="primary" :disabled="transferring"><ArrowLeftRight :size="17" />{{ transferring ? "Transfiriendo…" : "Transferir stock" }}</button></div>
     </form>
   </section>
@@ -254,7 +258,9 @@ watch([from, to, movementType], () => {
 .section-title p, .table-panel-heading p { margin: .25rem 0 0; color: #64748b; font-size: .875rem; }
 .kardex-filters { align-items: end; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .table-panel-heading { margin-bottom: 1rem; }
-.transfer-form { align-items: end; grid-template-columns: 1.2fr .7fr 1.2fr auto; }
+.transfer-form { align-items: end; grid-template-columns: 1.2fr .7fr 1.2fr auto; padding-bottom: 1.45rem; }
+.transfer-field { position: relative; }
+.transfer-field .field-error { position: absolute; top: calc(100% + .35rem); left: 0; white-space: nowrap; }
 .transfer-submit { display: flex; align-items: end; }
 .transfer-submit button { white-space: nowrap; }
 .transfer-confirmation { width: min(92vw, 34rem); }.transfer-confirmation h2 { margin-top: 0; }.transfer-confirmation p { line-height: 1.55; }.modal-actions { display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1.25rem; }
