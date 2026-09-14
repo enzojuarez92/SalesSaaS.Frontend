@@ -75,6 +75,12 @@ export const router = createRouter({
           meta: { requiresActiveSubscription: true },
         },
         {
+          path: "productos/:productId/kardex",
+          name: "product-kardex",
+          component: () => import("../views/KardexView.vue"),
+          meta: { requiresActiveSubscription: true },
+        },
+        {
           path: "categorias",
           name: "categories",
           component: () => import("../views/CategoriesView.vue"),

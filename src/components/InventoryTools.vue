@@ -6,6 +6,7 @@ import { download } from "../services/download";
 import { dateTime, number } from "../services/format";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
+import { useRouter } from "vue-router";
 import TablePaginator from "./TablePaginator.vue";
 const props = defineProps<{
   productId?: string;
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   updated: [payload?: { productId?: string; stock?: number }];
 }>();
 const tenant = useTenantStore();
+const router = useRouter();
 const busy = ref(false),
   error = ref(""),
   message = ref(""),
@@ -86,6 +88,13 @@ async function run(action: () => Promise<unknown>) {
   }
 }
 async function ledger() {
+  if (props.productId) {
+    await router.push({
+      name: "product-kardex",
+      params: { productId: props.productId },
+    });
+    return;
+  }
   await run(async () => {
     const { data } = await api.get(
       `/inventory-tools/products/${props.productId}/kardex`,
