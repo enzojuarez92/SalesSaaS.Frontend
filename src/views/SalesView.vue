@@ -500,6 +500,11 @@ async function createSale() {
       printFormat: tenant.printFormat,
       businessName: business.name || tenant.businessName,
       businessTaxId: business.taxId || tenant.businessTaxId,
+      businessLegalName: business.legalName || tenant.businessLegalName,
+      businessTaxCondition: business.taxCondition || tenant.businessTaxCondition,
+      businessAddress: business.address || tenant.businessAddress,
+      businessPhone: business.phone || tenant.businessPhone,
+      businessLogoUrl: business.logoUrl || tenant.businessLogoUrl,
       receiptNumber: invoiceNumber.value || orderId,
       date: receiptDate,
       customer: receiptCustomer.name,
@@ -508,7 +513,11 @@ async function createSale() {
       paymentMethod: paymentMethodLabel(payment.value),
       total: saleTotal,
       items: receiptItems,
+      documentTitle: authorization.value?.isApproved ? "FACTURA ELECTRÓNICA" : "TICKET",
       fiscalLabel: authorization.value?.isApproved ? "COMPROBANTE ELECTRÓNICO" : "DOCUMENTO NO FISCAL",
+      cae: authorization.value?.cae || undefined,
+      caeExpirationDate: authorization.value?.caeExpirationDate,
+      verificationUrl: authorization.value?.barCode,
     };
     showSuccess.value = true;
     await loadCatalogs();

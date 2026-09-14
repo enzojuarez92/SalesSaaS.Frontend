@@ -90,6 +90,11 @@ function printTicket(sale: SaleDetail) {
     printFormat: tenant.printFormat,
     businessName: business.name || tenant.businessName,
     businessTaxId: business.taxId || tenant.businessTaxId,
+    businessLegalName: business.legalName || tenant.businessLegalName,
+    businessTaxCondition: business.taxCondition || tenant.businessTaxCondition,
+    businessAddress: business.address || tenant.businessAddress,
+    businessPhone: business.phone || tenant.businessPhone,
+    businessLogoUrl: business.logoUrl || tenant.businessLogoUrl,
     receiptNumber: sale.receiptNumber,
     date: sale.date,
     customer: sale.customer,
@@ -98,6 +103,7 @@ function printTicket(sale: SaleDetail) {
     paymentMethod: paymentMethodLabel(sale.paymentMethod),
     total: sale.total,
     items: sale.items,
+    documentTitle: "TICKET",
     fiscalLabel: "DOCUMENTO NO FISCAL",
   })) notify("El navegador bloqueó la ventana de impresión.", true);
 }

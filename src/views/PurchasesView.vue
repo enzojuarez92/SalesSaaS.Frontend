@@ -137,12 +137,18 @@ async function printOrder(order: Purchase | PurchaseDetail) {
       printFormat: "a4",
       businessName: business.name || tenant.businessName,
       businessTaxId: business.taxId || tenant.businessTaxId,
+      businessLegalName: business.legalName || tenant.businessLegalName,
+      businessTaxCondition: business.taxCondition || tenant.businessTaxCondition,
+      businessAddress: business.address || tenant.businessAddress,
+      businessPhone: business.phone || tenant.businessPhone,
+      businessLogoUrl: business.logoUrl || tenant.businessLogoUrl,
       receiptNumber: `OC-${detail.id.slice(0, 8).toUpperCase()}`,
       date: detail.createdAtUtc,
       customer: supplierName(detail.supplierId),
       paymentMethod: "Orden de compra",
       total: detail.totalAmount,
       items: detail.items.map(item => ({ product: item.product, quantity: item.quantity, unitPrice: item.unitCost, subtotal: item.totalAmount })),
+      documentTitle: "ORDEN DE COMPRA",
       fiscalLabel: `ORDEN DE COMPRA · ${statusLabel(detail.status).toUpperCase()}`,
     });
     if (!printed) notify("El navegador bloqueó la ventana de impresión.", true);

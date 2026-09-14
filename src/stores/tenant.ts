@@ -23,6 +23,11 @@ export const useTenantStore = defineStore("tenant", () => {
   );
   const businessName = ref("Mi negocio");
   const businessTaxId = ref("");
+  const businessLegalName = ref("");
+  const businessTaxCondition = ref("");
+  const businessAddress = ref("");
+  const businessPhone = ref("");
+  const businessLogoUrl = ref("");
   const printFormat = ref<PrintFormat>("a4");
   const subscription = ref<Subscription | null>(null);
   const error = ref("");
@@ -33,6 +38,11 @@ export const useTenantStore = defineStore("tenant", () => {
     activeWarehouseId.value = "";
     businessName.value = "Mi negocio";
     businessTaxId.value = "";
+    businessLegalName.value = "";
+    businessTaxCondition.value = "";
+    businessAddress.value = "";
+    businessPhone.value = "";
+    businessLogoUrl.value = "";
     printFormat.value = "a4";
     subscription.value = null;
     error.value = "";
@@ -55,7 +65,7 @@ export const useTenantStore = defineStore("tenant", () => {
         params,
       }),
       api.get<Warehouse[]>("/warehouses", { params }),
-      api.get<{ id: string; name: string; taxId: string; printFormat: PrintFormat }>("/tenants/current"),
+      api.get<{ id: string; name: string; taxId: string; legalName?: string; taxCondition?: string; address?: string; phone?: string; logoUrl?: string; printFormat: PrintFormat }>("/tenants/current"),
     ]);
     if (current !== generation) return;
     const [billing, locations, currentTenant] = results;
@@ -67,6 +77,11 @@ export const useTenantStore = defineStore("tenant", () => {
     if (currentTenant.status === "fulfilled") {
       businessName.value = currentTenant.value.data.name;
       businessTaxId.value = currentTenant.value.data.taxId;
+      businessLegalName.value = currentTenant.value.data.legalName || "";
+      businessTaxCondition.value = currentTenant.value.data.taxCondition || "";
+      businessAddress.value = currentTenant.value.data.address || "";
+      businessPhone.value = currentTenant.value.data.phone || "";
+      businessLogoUrl.value = currentTenant.value.data.logoUrl || "";
       printFormat.value = currentTenant.value.data.printFormat;
     }
     activeWarehouseId.value =
@@ -81,6 +96,11 @@ export const useTenantStore = defineStore("tenant", () => {
     activeWarehouseId,
     businessName,
     businessTaxId,
+    businessLegalName,
+    businessTaxCondition,
+    businessAddress,
+    businessPhone,
+    businessLogoUrl,
     printFormat,
     subscription,
     error,
