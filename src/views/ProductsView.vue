@@ -493,6 +493,7 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.sku }}</small
+            ><small v-else class="input-hint-space" aria-hidden="true">&nbsp;</small
             ></label
           ><label
             >Nombre<input
@@ -504,6 +505,7 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.name }}</small
+            ><small v-else class="input-hint-space" aria-hidden="true">&nbsp;</small
             ></label
           ><label class="wide"
             >Categoría<span class="category-field"
@@ -557,13 +559,14 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.price }}</small
+            ><small v-else class="input-hint-space" aria-hidden="true">&nbsp;</small
             ></label
           ><label
             >IVA<select v-model.number="form.vatRate">
               <option :value="21">21%</option>
               <option :value="10.5">10,5%</option>
               <option :value="0">0%</option>
-            </select></label
+            </select><small class="input-hint-space" aria-hidden="true">&nbsp;</small></label
           ><label
             >Costo<CurrencyInput
               v-model="form.cost"
@@ -594,7 +597,7 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.stock }}</small
-            ><small v-if="!editingId"
+            ><small v-else-if="!editingId"
               >Se asignará a
               {{
                 tenant.warehouses.find((w) => w.id === tenant.activeWarehouseId)
@@ -616,6 +619,7 @@ watch(
               class="field-error"
               role="alert"
               >{{ fieldErrors.minimumStockAlert }}</small
+            ><small v-else class="input-hint-space" aria-hidden="true">&nbsp;</small
           ></label>
         </div>
         <button class="primary full" :disabled="saving">
@@ -763,6 +767,9 @@ watch(
   display: block;
   min-height: 1.2rem;
   margin-top: 0.35rem;
+}
+.product-modal .field-error {
+  min-height: 1.2rem;
 }
 :deep(.invoice-actions) {
   align-items: center;
