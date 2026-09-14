@@ -497,6 +497,37 @@ watch(() => tenant.activeWarehouseId, load);
   gap: 0.25rem;
   text-align: right;
 }
+:global(.dark) .dashboard-hero {
+  background: linear-gradient(120deg, #2b1e35, #1d2940 58%, #172033);
+  border-color: #664466;
+}
+:global(.dark) .dashboard-hero h2 { color: #fff7fb; }
+:global(.dark) .dashboard-hero p { color: #c7d4e7; }
+:global(.dark) .dashboard-hero a { color: #f9a8d4; }
+:global(.dark) .neon-kpis .kpi-card {
+  background: #17243a;
+  border-color: #40516d;
+}
+:global(.dark) .neon-kpis .kpi-card.orange { background: #2a2025; border-color: #744149; }
+:global(.dark) .neon-kpis .kpi-card.rose { background: #251f31; border-color: #63425f; }
+:global(.dark) .kpi-label,
+:global(.dark) .kpi-caption { color: #c3d0e3; }
+:global(.dark) .kpi-value { color: #f8fafc; }
+:global(.dark) .metric-icon { background: #30213b; color: #f9a8d4; }
+:global(.dark) .chart-grid { stroke: #40516d; }
+:global(.dark) .chart-labels,
+:global(.dark) .cash-widget > p,
+:global(.dark) .cash-widget small,
+:global(.dark) .cash-empty,
+:global(.dark) .product-list small,
+:global(.dark) .recent-sales small { color: #b8c7dc; }
+:global(.dark) .cash-widget > strong,
+:global(.dark) .product-list article strong,
+:global(.dark) .recent-sales article strong { color: #f8fafc; }
+:global(.dark) .product-list article,
+:global(.dark) .recent-sales article { border-color: #35445d; }
+:global(.dark) .rank,
+:global(.dark) .transaction-icon { background: #30213b; color: #f9a8d4; }
 @media (max-width: 800px) {
   .summary-grid {
     grid-template-columns: 1fr;
