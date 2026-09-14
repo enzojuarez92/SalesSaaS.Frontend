@@ -65,6 +65,9 @@ const fieldErrors = reactive<Record<string, string>>({});
 const canManage = computed(() =>
   ["Owner", "Admin", "Warehouse"].includes(auth.user?.role || ""),
 );
+const activeWarehouseName = computed(() =>
+  tenant.warehouses.find((warehouse) => warehouse.id === tenant.activeWarehouseId)?.name || "Sucursal no seleccionada",
+);
 
 async function loadCategories() {
   if (!auth.tenantId || !canManage.value) return;
@@ -290,12 +293,12 @@ async function saveQuickCategory() {
 async function saveAdjustment() {
   if (
     !adjusting.value ||
-    !adjustment.warehouseId ||
+    !tenant.activeWarehouseId ||
     adjustment.quantity <= 0 ||
     !adjustment.reason.trim()
   ) {
     error.value =
-      "Elegí el depósito, indicá una cantidad y el motivo del ajuste.";
+      "Seleccioná una sucursal activa, indicá una cantidad y el motivo del ajuste.";
     return;
   }
   saving.value = true;
@@ -304,7 +307,7 @@ async function saveAdjustment() {
     await api.post(`/products/${adjusting.value.id}/stock-adjustment`, {
       tenantId: auth.tenantId,
       productId: adjusting.value.id,
-      warehouseId: adjustment.warehouseId,
+      warehouseId: tenant.activeWarehouseId,
       type: adjustment.type,
       quantity: adjustment.quantity,
       reason: adjustment.reason,
@@ -679,29 +682,17 @@ watch(
     v-if="showAdjustment && adjusting"
     class="modal-backdrop"
   >
-    <section class="modal">
+    <section class="modal adjustment-modal">
       <button class="icon-button modal-close" @click="showAdjustment = false">
         <X />
       </button>
-      <h2>Ajustar stock</h2>
-      <p>
-        {{ adjusting.name }} · stock actual:
-        <strong>{{ adjusting.stock }}</strong>
-      </p>
+      <div class="adjustment-heading">
+        <div><h2>Ajustar stock</h2><p>{{ adjusting.name }}</p></div>
+        <div class="adjustment-stock"><span>Stock actual</span><strong>{{ adjusting.stock }}</strong><small>unidades</small></div>
+      </div>
       <p v-if="error" class="error">{{ error }}</p>
       <form novalidate @submit.prevent="saveAdjustment">
-        <label
-          >Depósito<select v-model="adjustment.warehouseId">
-            <option value="">Elegí un depósito</option>
-            <option
-              v-for="warehouse in tenant.warehouses"
-              :key="warehouse.id"
-              :value="warehouse.id"
-            >
-              {{ warehouse.name }}
-            </option>
-          </select></label
-        >
+        <label>Depósito<input :value="activeWarehouseName" readonly aria-readonly="true" /></label>
         <div class="form-grid">
           <label
             >Movimiento<select v-model.number="adjustment.type">
@@ -742,6 +733,17 @@ watch(
 .compact-modal {
   max-width: 30rem;
 }
+.adjustment-modal { width: min(100%, 34rem); }
+.adjustment-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-right: 2.75rem; }
+.adjustment-heading h2 { margin: 0; }
+.adjustment-heading p { margin: .35rem 0 0; color: #64748b; }
+.adjustment-stock { display: flex; align-items: baseline; gap: .4rem; padding: .7rem .85rem; white-space: nowrap; border: 1px solid #f9a8d4; border-radius: .75rem; background: #fdf2f8; }
+.adjustment-stock span { color: #9d174d; font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.adjustment-stock strong { color: #be185d; font-size: 1.55rem; line-height: 1; }
+.adjustment-stock small { color: #9d174d; }
+:global(.dark .adjustment-stock) { border-color: #9d174d; background: #321627; }
+:global(.dark .adjustment-stock span), :global(.dark .adjustment-stock small) { color: #f9a8d4; }
+:global(.dark .adjustment-stock strong) { color: #fda4af; }
 .product-modal {
   width: min(100%, 40rem);
   max-height: calc(100dvh - 24px);
