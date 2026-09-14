@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { Building2, KeyRound, MapPin, Plus, X } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import { getPrintFormat, savePrintBusiness, savePrintFormat, type PrintFormat } from "../services/receiptPrint";
 
 type TenantUser = { id: string; firstName: string; lastName: string; email: string; role: string; isActive: boolean; warehouseIds: string[] };
 const auth = useAuthStore(), tenant = useTenantStore();
-const tab = ref("business"), loading = ref(false), saving = ref(false), error = ref(""), success = ref("");
+const tab = ref("business"), loading = ref(false), saving = ref(false), error = ref("");
 const usersError = ref("");
 const users = ref<TenantUser[]>([]), showUser = ref(false), assigning = ref<TenantUser | null>(null), assignmentIds = ref<string[]>([]);
 const business = reactive({ name: "", legalName: "", taxId: "", taxCondition: "Responsable Inscripto", address: "", phone: "", logoUrl: "" });
@@ -19,7 +19,7 @@ const requiresWarehouses = computed(() => ["Seller", "Warehouse"].includes(user.
 const warehouseName = (id: string) => tenant.warehouses.find((warehouse) => warehouse.id === id)?.name || "Sucursal eliminada";
 
 function toggle(list: string[], id: string) { const index = list.indexOf(id); if (index >= 0) list.splice(index, 1); else list.push(id); }
-function selectTab(next: string) { tab.value = next; error.value = ""; success.value = ""; }
+function selectTab(next: string) { tab.value = next; error.value = ""; }
 function resetUser() { Object.assign(user, { firstName: "", lastName: "", email: "", password: "", role: "Seller", warehouseIds: tenant.warehouses[0] ? [tenant.warehouses[0].id] : [] }); }
 async function load() {
   if (!auth.tenantId) return;
@@ -39,17 +39,17 @@ async function load() {
     if (usersResponse.status === "fulfilled") users.value = usersResponse.value.data;
   } finally { loading.value = false; }
 }
-async function saveBusiness() { saving.value = true; error.value = ""; try { const { data } = await api.put("/settings/business", { tenantId: auth.tenantId, ...business, printFormat: printFormat.value }); Object.assign(business, data); savePrintBusiness(auth.tenantId, data); savePrintFormat(auth.tenantId, printFormat.value); tenant.businessName = data.name; tenant.businessTaxId = data.taxId; tenant.printFormat = data.printFormat; success.value = "Datos comerciales actualizados."; } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; } }
-async function saveAfip() { saving.value = true; error.value = ""; try { await api.post("/settings/afip-cert", { tenantId: auth.tenantId, ...afip }); success.value = "Certificado fiscal guardado."; } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; } }
+async function saveBusiness() { saving.value = true; error.value = ""; try { const { data } = await api.put("/settings/business", { tenantId: auth.tenantId, ...business, printFormat: printFormat.value }); Object.assign(business, data); savePrintBusiness(auth.tenantId, data); savePrintFormat(auth.tenantId, printFormat.value); tenant.businessName = data.name; tenant.businessTaxId = data.taxId; tenant.printFormat = data.printFormat; notify("Datos comerciales actualizados."); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; } }
+async function saveAfip() { saving.value = true; error.value = ""; try { await api.post("/settings/afip-cert", { tenantId: auth.tenantId, ...afip }); notify("Certificado fiscal guardado."); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; } }
 async function saveUser() {
   if (requiresWarehouses.value && !user.warehouseIds.length) { error.value = "Asigná al menos una sucursal al usuario."; return; }
   saving.value = true; error.value = "";
-  try { await api.post("/users", { tenantId: auth.tenantId, ...user, warehouseIds: requiresWarehouses.value ? user.warehouseIds : [] }); showUser.value = false; success.value = "Usuario creado con sus permisos."; await load(); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
+  try { await api.post("/users", { tenantId: auth.tenantId, ...user, warehouseIds: requiresWarehouses.value ? user.warehouseIds : [] }); showUser.value = false; notify("Usuario creado con sus permisos."); await load(); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
 }
 async function saveAssignments() {
   if (!assigning.value || !assignmentIds.value.length) { error.value = "Asigná al menos una sucursal al operador."; return; }
   saving.value = true; error.value = "";
-  try { await api.put(`/users/${assigning.value.id}/warehouses`, { tenantId: auth.tenantId, warehouseIds: assignmentIds.value }); assigning.value = null; success.value = "Sucursales asignadas correctamente."; await load(); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
+  try { await api.put(`/users/${assigning.value.id}/warehouses`, { tenantId: auth.tenantId, warehouseIds: assignmentIds.value }); assigning.value = null; notify("Sucursales asignadas correctamente."); await load(); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
 }
 function openAssignments(target: TenantUser) { assigning.value = target; assignmentIds.value = [...target.warehouseIds]; error.value = ""; }
 async function toggleStatus(target: TenantUser) { try { await api.put(`/users/${target.id}/toggle-status`, { tenantId: auth.tenantId, isActive: !target.isActive }); await load(); } catch (cause) { error.value = apiError(cause); } }
@@ -59,7 +59,7 @@ watch(printFormat, value => { if (auth.tenantId) savePrintFormat(auth.tenantId, 
 
 <template>
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Configuración</div><h1>Configuración</h1><p>Datos comerciales, facturación y accesos del equipo.</p></div></div>
-  <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="success" class="success" role="status">{{ success }}</p>
+  <p v-if="error" class="error" role="alert">{{ error }}</p>
   <div class="tabs"><button type="button" :class="{ active: tab === 'business' }" @click="selectTab('business')">Empresa</button><button type="button" :class="{ active: tab === 'afip' }" @click="selectTab('afip')">ARCA</button><button type="button" :class="{ active: tab === 'users' }" @click="selectTab('users')">Usuarios</button></div>
   <section v-if="tab === 'business'" class="panel"><h2>Datos de la empresa</h2><form class="form-grid" novalidate @submit.prevent="saveBusiness"><label>Nombre comercial<input v-model.trim="business.name" required maxlength="150" /></label><label>Razón social<input v-model.trim="business.legalName" maxlength="150" /></label><label>CUIT<input v-model="business.taxId" inputmode="numeric" pattern="[0-9]{11}" required /></label><label>Condición IVA<select v-model="business.taxCondition"><option>Responsable Inscripto</option><option>Monotributo</option><option>Exento</option></select></label><label class="wide">Dirección<input v-model.trim="business.address" maxlength="300" /></label><label>Teléfono<input v-model.trim="business.phone" maxlength="30" /></label><label>Logo URL<input v-model.trim="business.logoUrl" type="url" /></label><label class="wide">Formato de impresión<select v-model="printFormat"><option value="a4">Hoja A4 / PDF</option><option value="thermal-80">Ticket térmico 80 mm</option><option value="thermal-58">Ticket térmico 58 mm</option></select><small class="muted">Se aplicará al imprimir comprobantes desde el POS, historial y facturación.</small></label><button class="primary full" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar cambios' }}</button></form></section>
   <section v-if="tab === 'afip'" class="panel"><h2>Facturación ARCA</h2><p class="muted">La condición IVA del emisor define automáticamente la letra del comprobante. Probá primero en homologación.</p><form class="form-grid" novalidate @submit.prevent="saveAfip"><label>CUIT emisor<input v-model="afip.issuerTaxId" inputmode="numeric" pattern="[0-9]{11}" required /></label><label>Punto de venta<input v-model.number="afip.salesPoint" type="number" min="1" required /></label><label>Alias certificado<input v-model.trim="afip.certificateAlias" required maxlength="100" /></label><label>Entorno<select v-model.number="afip.environment"><option :value="1">Homologación</option><option :value="2">Producción</option></select></label><label class="wide">Certificado .crt<textarea v-model="afip.certificateContent" required /></label><label class="wide">Clave privada .key<textarea v-model="afip.privateKeyContent" required /></label><button class="primary full" :disabled="saving"><KeyRound :size="16" />{{ saving ? 'Guardando…' : 'Guardar certificado' }}</button></form></section>

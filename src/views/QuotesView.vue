@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { Ban, FilePenLine, LoaderCircle } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { money, dateTime } from "../services/format";
 
 type Quote = {
@@ -20,7 +20,6 @@ const rows = ref<Quote[]>([]);
 const loading = ref(false);
 const cancelingId = ref("");
 const error = ref("");
-const success = ref("");
 
 const isCurrent = (quote: Quote) =>
   quote.status === "Draft" && new Date(quote.expiresAtUtc).getTime() >= Date.now();
@@ -55,8 +54,7 @@ async function cancel(quote: Quote) {
   error.value = "";
   try {
     await api.post(`/sales/quotes/${quote.id}/cancel`);
-    success.value = "Presupuesto anulado.";
-    window.setTimeout(() => (success.value = ""), 5000);
+    notify("Presupuesto anulado.");
     await load();
   } catch (cause) {
     error.value = apiError(cause);
@@ -76,7 +74,6 @@ onMounted(load);
     <RouterLink class="primary" to="/ventas">Preparar presupuesto en POS</RouterLink>
   </div>
   <p v-if="error" class="error" role="alert">{{ error }}</p>
-  <p v-if="success" class="success" role="status">{{ success }}</p>
   <section class="panel">
     <div v-if="loading" class="empty-small"><LoaderCircle class="spin" />Cargando presupuestos…</div>
     <div v-else class="responsive-table">

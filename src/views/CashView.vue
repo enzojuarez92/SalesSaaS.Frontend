@@ -3,7 +3,7 @@ import { money } from "../services/format";
 import CurrencyInput from "../components/CurrencyInput.vue";
 import { computed, onMounted, ref, watch } from "vue";
 import { ArrowDownCircle, ArrowUpCircle, Banknote, CircleAlert, DoorOpen, LoaderCircle, LockKeyhole, Plus, ReceiptText, WalletCards, X } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type { CashSession } from "../types/api";
@@ -11,7 +11,7 @@ import type { CashSession } from "../types/api";
 const auth = useAuthStore();
 const tenant = useTenantStore();
 const current = ref<CashSession | null>(null), history = ref<CashSession[]>([]);
-const loading = ref(false), saving = ref(false), error = ref(""), success = ref("");
+const loading = ref(false), saving = ref(false), error = ref("");
 const showOpen = ref(false), showMovement = ref(false), showClose = ref(false);
 const openingBalance = ref(0), closingBalance = ref(0), movementAmount = ref(0), movementDescription = ref(""), movementIncome = ref(true), movementPayment = ref(1);
 
@@ -39,7 +39,7 @@ async function submitOpen() {
   if (!tenant.activeWarehouseId) { error.value = "Elegí un depósito antes de abrir la caja."; return; }
   if (openingBalance.value < 0) { error.value = "El fondo inicial no puede ser negativo."; return; }
   saving.value = true; error.value = "";
-  try { await api.post("/cash/open", { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId, openingBalance: openingBalance.value }); showOpen.value = false; success.value = "Caja abierta correctamente."; await load(); }
+  try { await api.post("/cash/open", { tenantId: auth.tenantId, warehouseId: tenant.activeWarehouseId, openingBalance: openingBalance.value }); showOpen.value = false; notify("Caja abierta correctamente."); await load(); }
   catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
 }
 function openMovement(income: boolean) { movementIncome.value = income; movementAmount.value = 0; movementDescription.value = ""; movementPayment.value = 1; error.value = ""; showMovement.value = true; }
@@ -47,14 +47,14 @@ async function submitMovement() {
   if (!current.value) return;
   if (!movementAmount.value || movementAmount.value <= 0 || !movementDescription.value.trim()) { error.value = "Ingresá un importe mayor a cero y el motivo del movimiento."; return; }
   saving.value = true; error.value = "";
-  try { await api.post("/cash/movements", { tenantId: auth.tenantId, cashRegisterSessionId: current.value.id, paymentMethod: movementPayment.value, amount: movementAmount.value, isIncome: movementIncome.value, description: movementDescription.value.trim() }); showMovement.value = false; success.value = movementIncome.value ? "Ingreso registrado en caja." : "Egreso registrado en caja."; await load(); }
+  try { await api.post("/cash/movements", { tenantId: auth.tenantId, cashRegisterSessionId: current.value.id, paymentMethod: movementPayment.value, amount: movementAmount.value, isIncome: movementIncome.value, description: movementDescription.value.trim() }); showMovement.value = false; notify(movementIncome.value ? "Ingreso registrado en caja." : "Egreso registrado en caja."); await load(); }
   catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
 }
 function openClose() { if (!current.value) return; closingBalance.value = current.value.expectedCash; error.value = ""; showClose.value = true; }
 async function submitClose() {
   if (!current.value || closingBalance.value < 0) { error.value = "El monto contado no puede ser negativo."; return; }
   saving.value = true; error.value = "";
-  try { const { data } = await api.post<{ difference: number }>("/cash/close", { tenantId: auth.tenantId, cashRegisterSessionId: current.value.id, closingBalance: closingBalance.value }); showClose.value = false; success.value = data.difference === 0 ? "Caja cerrada sin diferencias." : `Caja cerrada con una diferencia de ${money(data.difference)}.`; await load(); }
+  try { const { data } = await api.post<{ difference: number }>("/cash/close", { tenantId: auth.tenantId, cashRegisterSessionId: current.value.id, closingBalance: closingBalance.value }); showClose.value = false; notify(data.difference === 0 ? "Caja cerrada sin diferencias." : `Caja cerrada con una diferencia de ${money(data.difference)}.`); await load(); }
   catch (cause) { error.value = apiError(cause); } finally { saving.value = false; }
 }
 watch(() => [auth.tenantId, tenant.activeWarehouseId], load, { immediate: true });
@@ -63,7 +63,7 @@ onMounted(() => { if (!tenant.warehouses.length) void tenant.load(); });
 
 <template>
   <div class="page-heading"><div><div class="breadcrumb">Tu negocio / Caja</div><h1>Control de caja</h1><p>Abrí turnos, registrá movimientos y conciliá el efectivo al cierre.</p></div><button v-if="!current" class="primary" @click="openCash"><DoorOpen :size="17" />Abrir caja</button></div>
-  <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="success" class="success" role="status">{{ success }}</p>
+  <p v-if="error" class="error" role="alert">{{ error }}</p>
   <section class="panel cash-selector"><label>Depósito / sucursal<select v-model="tenant.activeWarehouseId"><option value="">Elegí un depósito</option><option v-for="warehouse in tenant.warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select></label></section>
   <div v-if="loading" class="empty-small"><LoaderCircle class="spin" /> Cargando estado de caja…</div>
   <template v-else-if="current"><section class="cash-hero"><div><span class="badge">Caja abierta</span><h2>{{ current.warehouseName }}</h2><p>Abierta el {{ localCashDateTime(current.openedAtUtc) }}</p></div><strong>{{ money(current.expectedCash) }}</strong><span>efectivo esperado</span><div class="cash-actions"><button class="secondary" @click="openMovement(true)"><ArrowUpCircle :size="17" />Ingreso</button><button class="secondary" @click="openMovement(false)"><ArrowDownCircle :size="17" />Egreso</button><button class="primary" @click="openClose"><LockKeyhole :size="17" />Cerrar y arquear</button></div></section>

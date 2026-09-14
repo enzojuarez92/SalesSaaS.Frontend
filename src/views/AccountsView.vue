@@ -14,7 +14,7 @@ import {
   WalletCards,
   X,
 } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type { AccountEntry, Customer, PagedResult } from "../types/api";
@@ -32,7 +32,6 @@ const customers = ref<Customer[]>([]),
   loading = ref(false),
   saving = ref(false),
   error = ref(""),
-  success = ref(""),
   page = ref(1),
   totalPages = ref(1),
   totalCount = ref(0);
@@ -45,7 +44,6 @@ const showForm = ref(false),
   paymentDescription = ref(""),
   paymentDescriptionError = ref("");
 const fieldErrors = reactive<Record<string, string>>({});
-let successTimer: ReturnType<typeof setTimeout> | undefined;
 const form = reactive({
   id: "",
   name: "",
@@ -114,11 +112,7 @@ function clearFieldError(field: string) {
   if (fieldErrors[field]) delete fieldErrors[field];
 }
 function showSuccess(message: string) {
-  success.value = message;
-  window.clearTimeout(successTimer);
-  successTimer = window.setTimeout(() => {
-    success.value = "";
-  }, 5000);
+  notify(message);
 }
 function validateForm() {
   clearFieldErrors();
@@ -311,7 +305,6 @@ watch(
     </button>
   </div>
   <p v-if="error && !showForm && !showStatement" class="error" role="alert">{{ error }}</p>
-  <p v-if="success && !showForm && !showStatement" class="success" role="status">{{ success }}</p>
   <div class="account-summary">
     <article>
       <span class="finance-icon orange"><CircleDollarSign /></span>
@@ -417,7 +410,6 @@ watch(
       </button>
       <h2>{{ form.id ? "Editar cliente" : "Nuevo cliente" }}</h2>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <p v-if="success" class="success" role="status">{{ success }}</p>
       <form novalidate @submit.prevent="save">
         <div class="form-grid">
           <label class="wide"
@@ -506,7 +498,6 @@ watch(
       </button>
       <h2>Cuenta de {{ selected.name }}</h2>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <p v-if="success" class="success" role="status">{{ success }}</p>
       <div class="statement-summary">
         <article class="balance-card">
           <span>Saldo pendiente</span>

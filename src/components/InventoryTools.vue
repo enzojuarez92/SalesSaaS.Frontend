@@ -116,7 +116,9 @@ async function upload(event: Event) {
       timeout: 120000,
     });
     errors.value = data.errors;
-    message.value = `${data.message} Productos importados: ${data.imported}.`;
+    const importMessage = `${data.message} Productos importados: ${data.imported}.`;
+    notify(importMessage, errors.value.length > 0);
+    message.value = "";
     if (data.imported) emit("updated");
   });
   input.value = "";
@@ -192,13 +194,6 @@ watch(
       ></template
     ><LoaderCircle v-if="busy" class="spin" />
     <p v-if="error && !show" class="error" role="alert">{{ error }}</p>
-    <p
-      v-if="message"
-      :class="errors.length ? 'error' : 'success'"
-      role="status"
-    >
-      {{ message }}
-    </p>
     <ul v-if="errors.length">
       <li v-for="e in errors" :key="e.row">
         Fila {{ e.row }}: {{ e.message }}

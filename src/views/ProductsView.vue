@@ -14,7 +14,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-vue-next";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import type { Category, PagedResult, Product, Supplier } from "../types/api";
@@ -33,7 +33,6 @@ const products = ref<Product[]>([]),
   loading = ref(false),
   saving = ref(false),
   error = ref(""),
-  success = ref(""),
   showModal = ref(false),
   showAdjustment = ref(false),
   showCategoryModal = ref(false),
@@ -229,7 +228,7 @@ async function save() {
       });
     else await api.post("/products", payload);
     showModal.value = false;
-    success.value = "Producto guardado correctamente.";
+    notify("Producto guardado correctamente.");
     await load();
   } catch (cause) {
     error.value = apiError(cause);
@@ -254,7 +253,7 @@ async function saveQuickSupplier() {
     await loadSuppliers();
     form.supplierId = data.id;
     showSupplierModal.value = false;
-    success.value = "Proveedor creado y asignado al producto.";
+    notify("Proveedor creado y asignado al producto.");
   } catch (cause) {
     error.value = apiError(cause);
   } finally {
@@ -283,7 +282,7 @@ async function saveQuickCategory() {
     await loadCategories();
     form.categoryId = data.id;
     showCategoryModal.value = false;
-    success.value = "Categoría creada y asignada al producto.";
+    notify("Categoría creada y asignada al producto.");
   } catch (cause) {
     error.value = apiError(cause);
   } finally {
@@ -314,7 +313,7 @@ async function saveAdjustment() {
       reference: null,
     });
     showAdjustment.value = false;
-    success.value = "Ajuste de stock registrado.";
+    notify("Ajuste de stock registrado.");
     await load();
   } catch (cause) {
     error.value = apiError(cause);
@@ -362,7 +361,6 @@ watch(
   <p v-if="error && !showModal && !showAdjustment" class="error" role="alert">
     {{ error }}
   </p>
-  <p v-if="success" class="success" role="status">{{ success }}</p>
   <InventoryTools v-if="canManage" @updated="load" />
   <section class="panel inventory-panel">
     <div class="inventory-toolbar">
