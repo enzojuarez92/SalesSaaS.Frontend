@@ -17,15 +17,15 @@ function format(value: number) {
   return props.currency ? `$ ${formatted}` : formatted;
 }
 function formatWhileEditing(value: number, source: string) {
-  const hasDecimal = /[,.]/.test(source);
-  const decimalMatch = source.replace(/[^\d,.]/g, "").match(/[,.]([^,.]*)$/);
-  const decimals = decimalMatch?.[1] ?? "";
-  const integer = Math.trunc(value);
-  const grouped = new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: 0,
-  }).format(integer);
-  if (!hasDecimal) return grouped;
-  return `${grouped},${decimals.slice(0, 2)}`;
+  if (!source) return String(Math.trunc(value));
+  // Mientras el usuario escribe, un punto puede ser el agrupador de miles
+  // que el propio componente mostró antes. No se debe reinterpretar como
+  // decimal: los decimales se escriben con coma según el formato local.
+  const normalized = source.replace(/[^\d,]/g, "");
+  const [integerPart = "", ...decimalParts] = normalized.split(",");
+  const integer = integerPart.replace(/^0+(?=\d)/, "") || "0";
+  if (!decimalParts.length) return integer;
+  return `${integer},${decimalParts.join("").slice(0, 2)}`;
 }
 function parse(value: string) {
   const text = value.replace(/[^\d,.-]/g, "").replace(/-/g, "");
@@ -44,9 +44,11 @@ function parse(value: string) {
   const result = Number(normalized);
   return Number.isFinite(result) ? Math.max(props.min, result) : props.min;
 }
-function focus() {
+async function focus(event: FocusEvent) {
   editing.value = true;
   display.value = formatWhileEditing(Number(props.modelValue ?? props.min), "");
+  await nextTick();
+  (event.target as HTMLInputElement).select();
 }
 async function input(event: Event) {
   const input = event.target as HTMLInputElement;
