@@ -273,7 +273,6 @@ watch(auditSearch, () => { auditPage.value = 1; });
 .report-tabs button.active { border-color:#ec4899; background:#ec4899; color:#fff; box-shadow:0 6px 14px #ec489933; }
 .report-toolbar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:1rem; margin-bottom:1.75rem; padding-bottom:.25rem; }
 .report-toolbar label { flex:1 1 10.5rem; min-width:0; }
-.report-toolbar label:has(select) { flex-basis:13rem; }
 .report-toolbar input, .report-toolbar select, .report-toolbar button { height:2.75rem; }
 .report-toolbar button { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; align-self:flex-end; white-space:nowrap; }
 :global(.dark) .report-tabs button { background:#172033; border-color:#40516d; color:#c8d4e6; }
