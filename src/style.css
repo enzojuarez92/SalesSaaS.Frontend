@@ -474,6 +474,20 @@ summary {
   background: transparent;
   font-size: 12px;
 }
+.tour-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #f9a8d4;
+  border-radius: 8px;
+  background: #fff;
+  color: #be185d;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.tour-button:hover { background: #fdf2f8; }
 .avatar {
   border: 1px solid #fce7f3;
   background: #fce7f3;
@@ -1755,6 +1769,8 @@ textarea[aria-invalid="true"] {
 .dark .secondary:hover,
 .dark .icon-button:hover { background: #293a55; border-color: #7589a8; }
 .dark .sidebar .nav-item { color: #c8d4e6; }
+.dark .tour-button { border-color: #7c2d5b; background: #1b2940; color: #f9a8d4; }
+.dark .tour-button:hover { background: #293a55; }
 .dark .sidebar .nav-item.active { color: #fff1f7 !important; background: #3a294a !important; }
 .dark .status.success-status { color: #047857; background: #d1fae5; }
 .dark .afip-status.pending { color: #92400e; background: #fef3c7; }

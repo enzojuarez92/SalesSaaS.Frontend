@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, nextTick, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Layers,
@@ -25,11 +25,13 @@ import {
   Moon,
   Sun,
   LoaderCircle,
+  CircleHelp,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import { api, apiError } from "../services/api";
 import type { Notification } from "../types/api";
+import OnboardingTour from "../components/OnboardingTour.vue";
 const auth = useAuthStore(),
   tenant = useTenantStore(),
   route = useRoute(),
@@ -42,6 +44,7 @@ const collapsed = ref(false),
   profileModalOpen = ref(false),
   profileLoading = ref(false),
   profileSaving = ref(false),
+  showOnboarding = ref(false),
   darkMode = ref(document.documentElement.classList.contains("dark"));
 const profileForm = reactive({
   firstName: "",
@@ -109,6 +112,26 @@ watch(
     search.value = "";
     profileOpen.value = false;
   },
+);
+const tourStorageKey = computed(() =>
+  auth.user?.id ? `salessaas.onboarding.v1.${auth.user.id}` : "",
+);
+function openOnboarding() { showOnboarding.value = true; }
+function finishOnboarding() {
+  if (tourStorageKey.value) localStorage.setItem(tourStorageKey.value, "completed");
+  showOnboarding.value = false;
+}
+watch(
+  () => auth.user?.id,
+  async (userId) => {
+    showOnboarding.value = false;
+    if (!userId) return;
+    await nextTick();
+    if (localStorage.getItem(`salessaas.onboarding.v1.${userId}`) !== "completed") {
+      showOnboarding.value = true;
+    }
+  },
+  { immediate: true },
 );
 async function loadNotifications() {
   notificationsOpen.value = !notificationsOpen.value;
@@ -199,7 +222,7 @@ async function saveProfile() {
         </div>
       </div>
       <p class="nav-caption sidebar-label">PRINCIPAL</p>
-      <nav aria-label="Navegación principal">
+      <nav aria-label="Navegación principal" data-tour="main-navigation">
         <RouterLink
           v-for="item in nav"
           :key="item.path"
@@ -207,6 +230,7 @@ async function saveProfile() {
           :title="item.name"
           class="nav-item"
           :class="{ active: route.path === item.path }"
+          :data-tour="item.path === '/configuracion' ? 'company-setup' : item.path === '/caja' ? 'cash-pos' : undefined"
           ><component :is="item.icon" :size="20" /><span
             class="sidebar-label"
             >{{ item.name }}</span
@@ -281,6 +305,9 @@ async function saveProfile() {
             <p v-if="!filtered.length">No encontramos módulos.</p>
           </div>
         </div>
+        <button class="tour-button" type="button" title="Ver tour guiado" @click="openOnboarding">
+          <CircleHelp :size="18" /><span>Ver tour guiado</span>
+        </button>
         <div class="popover-anchor">
           <button
             class="icon-button notification-button"
@@ -448,5 +475,6 @@ async function saveProfile() {
         SalesSaaS <span>Hecho para acompañar tu crecimiento.</span>
       </footer>
     </div>
+    <OnboardingTour v-if="showOnboarding" @complete="finishOnboarding" @skip="finishOnboarding" />
   </div>
 </template>

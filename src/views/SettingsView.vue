@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { Building2, CircleHelp, ImageUp, KeyRound, MapPin, Plus, Trash2, X } from "lucide-vue-next";
+import { Building2, CircleHelp, ImageUp, KeyRound, MapPin, Plus, Trash2, TriangleAlert, X } from "lucide-vue-next";
 import { api, apiError, notify } from "../services/api";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
@@ -96,7 +96,7 @@ watch(printFormat, value => { if (auth.tenantId) savePrintFormat(auth.tenantId, 
     <h2>Facturación ARCA</h2>
     <p class="muted">La condición IVA del emisor define automáticamente la letra del comprobante. Probá primero en homologación.</p>
     <details class="afip-guide">
-      <summary><CircleHelp :size="19" />¿Cómo configurar el certificado y vincular AFIP?</summary>
+      <summary><CircleHelp :size="18" />¿Necesitás ayuda para configurar tu certificado?</summary>
       <div class="afip-guide-content">
         <p>Completá estos pasos antes de cargar el certificado en SalesSaaS.</p>
         <ol>
@@ -108,6 +108,7 @@ watch(printFormat, value => { if (auth.tenantId) savePrintFormat(auth.tenantId, 
         </ol>
       </div>
     </details>
+    <p v-if="afip.environment === 1" class="afip-test-mode" role="status"><TriangleAlert :size="16" /><span><strong>Modo de Pruebas activo:</strong> Las facturas emitidas no tienen validez fiscal.</span></p>
     <form class="form-grid" novalidate @submit.prevent="saveAfip">
       <label>CUIT emisor<input v-model="afip.issuerTaxId" inputmode="numeric" pattern="[0-9]{11}" required /></label>
       <label>Punto de venta<input v-model.number="afip.salesPoint" type="number" min="1" required /><small class="field-help"><CircleHelp :size="14" />Número de punto de venta dado de alta en AFIP configurado para Web Services (ej. 1, 2, 3).</small></label>
@@ -125,4 +126,5 @@ watch(printFormat, value => { if (auth.tenantId) savePrintFormat(auth.tenantId, 
 
 <style scoped>
 .tabs{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem}.tabs button{padding:.6rem 1rem;border:1px solid #e2e8f0;border-radius:.6rem;background:#fff}.tabs button.active{color:#fff;background:#ec4899;border-color:#ec4899}.wide{grid-column:span 2}.warehouse-list{display:grid;gap:.5rem;border:1px solid #e2e8f0;border-radius:.75rem;padding:.8rem}.check-row{display:flex;align-items:center;gap:.55rem;cursor:pointer}.check-row input{width:auto}.success-text{display:block;margin-top:.3rem;color:#047857}.logo-control{display:flex;justify-content:space-between;align-items:center;gap:1rem;border:1px dashed #cbd5e1;border-radius:.75rem;padding:.85rem}.logo-control strong,.logo-control small{display:block}.logo-actions{display:flex;align-items:center;gap:.5rem}.logo-actions img{width:3.5rem;height:3.5rem;object-fit:contain;border:1px solid #e2e8f0;border-radius:.5rem;background:#fff}.upload-logo{position:relative;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer}.upload-logo input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.danger-button{color:#e11d48}.afip-guide{margin:1.1rem 0;padding:.9rem 1rem;border:1px solid #f9a8d4;border-radius:.8rem;background:#fdf2f8}.afip-guide summary{display:flex;align-items:center;gap:.5rem;color:#be185d;font-weight:700;cursor:pointer;list-style:none}.afip-guide summary::-webkit-details-marker{display:none}.afip-guide-content{max-width:52rem;margin-top:.85rem;color:#475569}.afip-guide-content p{margin:0}.afip-guide-content ol{display:grid;gap:.6rem;margin:.8rem 0 0;padding-left:1.3rem}.afip-guide-content li{padding-left:.15rem;line-height:1.5}.afip-guide-content code{padding:.08rem .28rem;border-radius:.25rem;background:#fce7f3;color:#9d174d}.field-help{display:flex;align-items:flex-start;gap:.35rem;color:#64748b;font-size:.75rem;font-weight:400;line-height:1.4}.field-help svg{flex:0 0 auto;margin-top:.04rem;color:#db2777}.dark .afip-guide{border-color:#7c2d5b;background:#2e1930}.dark .afip-guide summary{color:#f9a8d4}.dark .afip-guide-content{color:#d1dced}.dark .afip-guide-content code{background:#442039;color:#fbcfe8}.dark .field-help{color:#b8c7dc}.dark .field-help svg{color:#f9a8d4}@media(max-width:600px){.wide{grid-column:span 1}.logo-control{align-items:flex-start;flex-direction:column}}
+.afip-guide{display:inline-block;margin:1rem 0 .65rem;border:1px solid #e2e8f0;border-radius:.7rem;background:#fff}.afip-guide summary{display:flex;align-items:center;gap:.45rem;padding:.65rem .8rem;color:#475569;font-size:.84rem;font-weight:700;cursor:pointer;list-style:none}.afip-guide[open]{display:block;background:#fdfcff;border-color:#f9a8d4}.afip-guide[open] summary{color:#be185d;border-bottom:1px solid #fce7f3}.afip-guide-content{max-width:52rem;padding:.75rem .9rem;color:#475569;font-size:.82rem}.afip-guide-content ol{gap:.38rem;margin:.65rem 0 0;padding-left:1.2rem}.afip-guide-content li{line-height:1.45}.afip-test-mode{display:flex;align-items:flex-start;gap:.45rem;margin:.15rem 0 1rem;padding:.62rem .75rem;border:1px solid #fde68a;border-radius:.65rem;background:#fffbeb;color:#92400e;font-size:.8rem;line-height:1.4}.afip-test-mode svg{flex:0 0 auto;margin-top:.03rem}.dark .afip-guide{border-color:#475a77;background:#18233a}.dark .afip-guide[open]{border-color:#7c2d5b;background:#211b32}.dark .afip-guide summary{color:#cbd5e1}.dark .afip-guide[open] summary{color:#f9a8d4;border-color:#55304e}.dark .afip-guide-content{color:#d1dced}.dark .afip-test-mode{border-color:#785a13;background:#2d2715;color:#fde68a}
 </style>
