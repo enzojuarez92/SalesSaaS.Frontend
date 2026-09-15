@@ -23,6 +23,15 @@ export const router = createRouter({
       meta: { public: true },
     },
     {
+      path: "/admin",
+      component: () => import("../layouts/AdminLayout.vue"),
+      meta: { requiresSuperAdmin: true },
+      children: [
+        { path: "", name: "admin-dashboard", component: () => import("../views/AdminDashboardView.vue") },
+        { path: "empresas", name: "admin-tenants", component: () => import("../views/AdminTenantsView.vue") },
+      ],
+    },
+    {
       path: "/",
       component: () => import("../layouts/AppLayout.vue"),
       children: [
@@ -137,6 +146,7 @@ router.beforeEach(async (to) => {
     return { path: "/login", query: { redirect: to.fullPath, expired: "1" } };
   }
   if (to.meta.public && auth.isAuthenticated) return "/dashboard";
+  if (to.matched.some(record => record.meta.requiresSuperAdmin) && auth.user?.role !== "SuperAdmin") return "/dashboard";
   if (to.meta.requiresActiveSubscription && auth.tenantId) {
     try {
       const { data } = await api.get<Subscription | null>("/subscription/current", { params: { tenantId: auth.tenantId } });

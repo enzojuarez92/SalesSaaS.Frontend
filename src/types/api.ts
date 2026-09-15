@@ -181,6 +181,23 @@ export interface Supplier {
   address?: string | null;
   isActive: boolean;
 }
+export interface AdminDashboard {
+  registeredTenants: number;
+  activeSubscriptions: number;
+  trialingTenants: number;
+  estimatedMonthlyRevenue: number;
+}
+export interface AdminTenant {
+  id: string;
+  name: string;
+  taxId: string;
+  planName: string;
+  subscriptionPlanId: string | null;
+  status: string;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+export interface AdminPlan { id: string; name: string; monthlyPrice: number; currency: string; }
 
 export interface AccountEntry {
   id: string;

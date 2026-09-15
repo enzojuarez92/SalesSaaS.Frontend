@@ -34,7 +34,7 @@ async function submit() {
       password: password.value,
       ...(tenantId.value ? { tenantId: tenantId.value } : {}),
     });
-    await router.replace(safeRedirect(route.query.redirect));
+    await router.replace(auth.user?.role === "SuperAdmin" ? "/admin" : safeRedirect(route.query.redirect));
   } catch (e) {
     error.value = apiError(e);
   } finally {
