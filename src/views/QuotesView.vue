@@ -86,7 +86,7 @@ onMounted(load);
             <td data-label="Vencimiento">{{ dateTime(quote.expiresAtUtc) }}</td>
             <td data-label="Estado"><span :class="quote.status === 'Invoiced' ? 'status info-status' : isCurrent(quote) ? 'status success-status' : 'status danger'">{{ statusLabel(quote) }}</span></td>
             <td data-label="Acciones">
-              <div v-if="isCurrent(quote)" class="invoice-actions">
+              <div v-if="isCurrent(quote)" class="invoice-actions quote-actions">
                 <button title="Cargar presupuesto en POS" :aria-label="`Cargar presupuesto de ${quote.customer} en POS`" @click="loadInPos(quote)"><FilePenLine :size="16" /></button>
                 <button title="Anular presupuesto" :aria-label="`Anular presupuesto de ${quote.customer}`" :disabled="cancelingId === quote.id" @click="cancel(quote)"><LoaderCircle v-if="cancelingId === quote.id" class="spin" :size="16" /><Ban v-else :size="16" /></button>
               </div>
@@ -99,3 +99,6 @@ onMounted(load);
     </div>
   </section>
 </template>
+<style scoped>
+.quote-actions { align-items:center; justify-content:flex-start; min-height:31px; }
+</style>
