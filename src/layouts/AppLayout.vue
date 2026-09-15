@@ -230,7 +230,7 @@ async function saveProfile() {
           :title="item.name"
           class="nav-item"
           :class="{ active: route.path === item.path }"
-          :data-tour="item.path === '/configuracion' ? 'company-setup' : item.path === '/caja' ? 'cash-pos' : undefined"
+          :data-tour="item.path === '/productos' ? 'products' : item.path === '/cuentas-corrientes' ? 'accounts' : item.path === '/configuracion' ? 'company-setup' : item.path === '/caja' ? 'cash-pos' : undefined"
           ><component :is="item.icon" :size="20" /><span
             class="sidebar-label"
             >{{ item.name }}</span

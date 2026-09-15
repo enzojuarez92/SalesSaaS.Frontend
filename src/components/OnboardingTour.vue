@@ -5,9 +5,11 @@ import { ArrowLeft, ArrowRight, CircleHelp, Rocket, X } from "lucide-vue-next";
 const emit = defineEmits<{ (event: "complete"): void; (event: "skip"): void }>();
 const current = ref(0);
 const steps = [
-  { title: "Conocé la navegación principal", description: "Desde este menú podés entrar rápidamente a Ventas / POS, Productos, Caja y Reportes. Cada sección conserva el depósito activo que elegiste arriba.", target: '[data-tour="main-navigation"]' },
-  { title: "Configurá tu empresa y ARCA", description: "En Configuración cargás los datos de tu negocio, CUIT y certificado. Ahí también vas a encontrar una guía para vincular ARCA antes de emitir comprobantes.", target: '[data-tour="company-setup"]' },
-  { title: "Abrí caja y empezá a cobrar", description: "Abrí el turno desde Caja y luego ingresá a Ventas / POS para registrar cobros. Las ventas en efectivo se reflejan automáticamente en la caja activa.", target: '[data-tour="cash-pos"]' },
+  { title: "Menú y navegación principal", description: "Conocé la navegación principal: Accedé rápidamente a tus ventas, productos, caja y reportes.", target: '[data-tour="main-navigation"]' },
+  { title: "Carga de productos y stock", description: "Cargá tu catálogo: Agregá tus productos con sus costos, precios de venta, códigos de barra y stock inicial para poder vender.", target: '[data-tour="products"]' },
+  { title: "Clientes y cuentas corrientes", description: "Gestioná tus clientes: Registrá a tus clientes para venderles fiado, gestionar sus saldos de cuenta corriente y llevar el historial de cobros.", target: '[data-tour="accounts"]' },
+  { title: "Configuración de empresa y ARCA", description: "Configurá tu factura electrónica: Cargá el CUIT de tu negocio y vinculá tus certificados de ARCA/AFIP si vas a emitir comprobantes legales.", target: '[data-tour="company-setup"]' },
+  { title: "Caja y punto de venta", description: "¡Listos para vender! Abrí el turno de caja e ingresá al Punto de Venta para registrar cobros en efectivo, tarjeta o transferencia.", target: '[data-tour="cash-pos"]' },
 ];
 const step = computed(() => steps[current.value]);
 let highlighted: HTMLElement | null = null;
