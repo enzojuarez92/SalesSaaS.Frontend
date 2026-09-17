@@ -11,6 +11,7 @@ async function load() { loading.value = true; error.value = ""; try { const [ann
 function open() { Object.assign(form, { title: "", message: "", severity: "info", targetTenantId: "" }); error.value = ""; showModal.value = true; }
 async function save() { if (!form.title.trim() || !form.message.trim()) { error.value = "Completá el título y el mensaje."; return; } saving.value = true; try { const { data } = await api.post<PlatformNotification>("/superadmin/notifications", { ...form, targetTenantId: form.targetTenantId || null }); notifications.value = [data, ...notifications.value]; showModal.value = false; notify("Anuncio publicado."); } catch (cause) { error.value = apiError(cause); } finally { saving.value = false; } }
 async function remove(item: PlatformNotification) { if (!window.confirm(`¿Eliminar el anuncio “${item.title}”?`)) return; try { await api.delete(`/superadmin/notifications/${item.id}`); notifications.value = notifications.value.filter(current => current.id !== item.id); notify("Anuncio eliminado."); } catch (cause) { error.value = apiError(cause); } }
+onMounted(load);
 </script>
 
 <template>
