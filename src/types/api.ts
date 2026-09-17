@@ -181,6 +181,28 @@ export interface Supplier {
   address?: string | null;
   isActive: boolean;
 }
+export interface PlatformNotification {
+  id: string;
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "success";
+  targetTenantId: string | null;
+  targetTenantName: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+export interface SupportTicket {
+  id: string;
+  tenantId: string;
+  tenantName: string | null;
+  userName: string | null;
+  subject: string;
+  message: string;
+  response: string | null;
+  status: 1 | 2 | 3;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
 export interface AdminDashboard {
   registeredTenants: number;
   activeSubscriptions: number;

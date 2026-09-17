@@ -29,6 +29,8 @@ export const router = createRouter({
       children: [
         { path: "", name: "admin-dashboard", component: () => import("../views/AdminDashboardView.vue") },
         { path: "empresas", name: "admin-tenants", component: () => import("../views/AdminTenantsView.vue") },
+        { path: "anuncios", name: "admin-notifications", component: () => import("../views/AdminNotificationsView.vue") },
+        { path: "consultas", name: "admin-support", component: () => import("../views/AdminSupportView.vue") },
       ],
     },
     {
@@ -128,6 +130,11 @@ export const router = createRouter({
           name: "reports",
           component: () => import("../views/ReportsView.vue"),
           meta: { requiresActiveSubscription: true },
+        },
+        {
+          path: "soporte",
+          name: "support",
+          component: () => import("../views/SupportView.vue"),
         },
         {
           path: "modules/:module",

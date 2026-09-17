@@ -30,7 +30,7 @@ import {
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 import { api, apiError } from "../services/api";
-import type { Notification } from "../types/api";
+import type { Notification, PlatformNotification } from "../types/api";
 import OnboardingTour from "../components/OnboardingTour.vue";
 const auth = useAuthStore(),
   tenant = useTenantStore(),
@@ -55,6 +55,7 @@ const profileForm = reactive({
 });
 const profileError = ref("");
 const notifications = ref<Notification[]>([]),
+  platformNotifications = ref<PlatformNotification[]>([]),
   notificationError = ref(""),
   notificationLoading = ref(false);
 const allNav = [
@@ -74,6 +75,7 @@ const allNav = [
   { name: "Presupuestos", path: "/presupuestos", icon: Receipt },
   { name: "Caja", path: "/caja", icon: Wallet },
   { name: "Reportes", path: "/reportes", icon: BarChart3 },
+  { name: "Soporte / Ayuda", path: "/soporte", icon: CircleHelp },
   { name: "Suscripción", path: "/suscripcion", icon: CreditCard },
   { name: "Configuración", path: "/configuracion", icon: Building2 },
 ];
@@ -81,7 +83,7 @@ const nav = computed(() =>
   allNav.filter((n) => {
     const role = auth.user?.role;
     if (role === "Owner" || role === "Admin") return true;
-    const common = ["/dashboard", "/productos", "/suscripcion"];
+    const common = ["/dashboard", "/productos", "/soporte", "/suscripcion"];
     return (
       common.includes(n.path) ||
       (role === "Seller"
@@ -100,11 +102,25 @@ const filtered = computed(() =>
 watch(
   () => auth.tenantId,
   () => {
-    notifications.value = [];
+    notifications.value = []; platformNotifications.value = [];
     void tenant.load();
+    void refreshUnreadNotifications();
   },
   { immediate: true },
 );
+async function refreshUnreadNotifications() {
+  if (!auth.tenantId) return;
+  try {
+    const [operational, platform] = await Promise.all([
+      api.get<Notification[]>("/notifications", { params: { unreadOnly: true } }),
+      api.get<PlatformNotification[]>("/notifications/unread"),
+    ]);
+    notifications.value = operational.data;
+    platformNotifications.value = platform.data;
+  } catch {
+    // El menú sigue disponible aunque el servidor aún no tenga anuncios para este tenant.
+  }
+}
 watch(
   () => route.fullPath,
   () => {
@@ -139,19 +155,31 @@ async function loadNotifications() {
   notificationError.value = "";
   notificationLoading.value = true;
   try {
-    notifications.value = (
-      await api.get<Notification[]>("/notifications")
-    ).data;
+    const [operational, platform] = await Promise.all([
+      api.get<Notification[]>("/notifications"),
+      api.get<PlatformNotification[]>("/notifications/unread"),
+    ]);
+    notifications.value = operational.data;
+    platformNotifications.value = platform.data;
   } catch (e) {
     notificationError.value = apiError(e);
   } finally {
     notificationLoading.value = false;
   }
 }
+const unreadCount = computed(() => notifications.value.filter(item => !item.isRead).length + platformNotifications.value.length);
 async function markRead(n: Notification) {
   try {
     await api.post(`/notifications/${n.id}/read`);
     n.isRead = true;
+  } catch (e) {
+    notificationError.value = apiError(e);
+  }
+}
+async function markPlatformRead(n: PlatformNotification) {
+  try {
+    await api.post(`/notifications/platform/${n.id}/read`);
+    platformNotifications.value = platformNotifications.value.filter(item => item.id !== n.id);
   } catch (e) {
     notificationError.value = apiError(e);
   }
@@ -316,6 +344,7 @@ async function saveProfile() {
             @click="loadNotifications"
           >
             <Bell :size="20" />
+            <span v-if="unreadCount" class="notification-count">{{ unreadCount > 9 ? "9+" : unreadCount }}</span>
           </button>
           <section v-if="notificationsOpen" class="popover notification-panel">
             <div class="section-heading">
@@ -332,9 +361,13 @@ async function saveProfile() {
             <p v-else-if="notificationError" class="error" role="alert">
               {{ notificationError }}
             </p>
-            <p v-else-if="!notifications.length" class="empty-small">
+            <p v-else-if="!notifications.length && !platformNotifications.length" class="empty-small">
               Todavía no tenés notificaciones.
             </p>
+            <article v-for="n in platformNotifications" :key="n.id" class="notification platform-notification" :class="n.severity">
+              <strong>{{ n.title }}</strong><p>{{ n.message }}</p>
+              <button class="text-button" @click="markPlatformRead(n)"><Check :size="14" /> Marcar como leída</button>
+            </article>
             <article
               v-for="n in notifications"
               :key="n.id"

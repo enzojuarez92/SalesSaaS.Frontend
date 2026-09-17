@@ -173,6 +173,9 @@ form {
 .icon-button:hover {
   background: #efeffa;
 }
+.notification-button { position: relative; }
+.notification-count { position:absolute; top:2px; right:1px; min-width:1rem; height:1rem; display:grid; place-items:center; padding:0 .16rem; border:2px solid #fff; border-radius:999px; background:#ec4899; color:#fff; font-size:.58rem; font-weight:800; line-height:1; }
+.platform-notification { border-left:3px solid #3b82f6; }.platform-notification.warning { border-left-color:#f59e0b; }.platform-notification.success { border-left-color:#10b981; }
 .text-button {
   display: inline-flex;
   align-items: center;
@@ -1768,6 +1771,7 @@ textarea[aria-invalid="true"] {
 .dark .icon-button { color: #f2f6fc; background: #1b2940; border-color: #475a77; }
 .dark .secondary:hover,
 .dark .icon-button:hover { background: #293a55; border-color: #7589a8; }
+.dark .notification-count { border-color:#18233a; }
 .dark .sidebar .nav-item { color: #c8d4e6; }
 .dark .tour-button { border-color: #7c2d5b; background: #1b2940; color: #f9a8d4; }
 .dark .tour-button:hover { background: #293a55; }
