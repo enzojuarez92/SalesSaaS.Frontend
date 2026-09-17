@@ -202,6 +202,22 @@ export interface SupportTicket {
   status: 1 | 2 | 3;
   createdAtUtc: string;
   updatedAtUtc: string;
+  messages: SupportTicketMessage[];
+}
+export interface SupportTicketMessage {
+  id: string;
+  isFromSupport: boolean;
+  message: string;
+  createdAtUtc: string;
+}
+export interface NotificationHistory {
+  id: string;
+  source: "personal" | "platform";
+  title: string;
+  message: string;
+  severity: "info" | "warning" | "success";
+  isRead: boolean;
+  createdAtUtc: string;
 }
 export interface AdminDashboard {
   registeredTenants: number;

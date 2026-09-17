@@ -168,6 +168,10 @@ async function loadNotifications() {
   }
 }
 const unreadCount = computed(() => notifications.value.filter(item => !item.isRead).length + platformNotifications.value.length);
+const notificationPreview = computed(() => [
+  ...platformNotifications.value.map(item => ({ kind: "platform" as const, item, createdAt: item.createdAtUtc })),
+  ...notifications.value.map(item => ({ kind: "personal" as const, item, createdAt: item.createdAtUtc })),
+].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)).slice(0, 3));
 let notificationRefreshTimer: ReturnType<typeof window.setInterval> | undefined;
 function refreshNotificationsWhenVisible() {
   if (document.visibilityState === "visible") void refreshUnreadNotifications();
@@ -373,24 +377,17 @@ async function saveProfile() {
             <p v-else-if="notificationError" class="error" role="alert">
               {{ notificationError }}
             </p>
-            <p v-else-if="!notifications.length && !platformNotifications.length" class="empty-small">
+            <p v-else-if="!notificationPreview.length" class="empty-small">
               Todavía no tenés notificaciones.
             </p>
-            <article v-for="n in platformNotifications" :key="n.id" class="notification platform-notification" :class="n.severity">
-              <strong>{{ n.title }}</strong><p>{{ n.message }}</p>
-              <button class="text-button" @click="markPlatformRead(n)"><Check :size="14" /> Marcar como leída</button>
-            </article>
-            <article
-              v-for="n in notifications"
-              :key="n.id"
-              class="notification"
-            >
-              <strong>{{ n.title }}</strong>
-              <p>{{ n.message }}</p>
-              <button v-if="!n.isRead" class="text-button" @click="markRead(n)">
+            <article v-for="notification in notificationPreview" :key="`${notification.kind}-${notification.item.id}`" class="notification" :class="notification.kind === 'platform' ? ['platform-notification', notification.item.severity] : ''">
+              <strong>{{ notification.item.title }}</strong><p>{{ notification.item.message }}</p>
+              <button v-if="notification.kind === 'platform'" class="text-button" @click="markPlatformRead(notification.item)"><Check :size="14" /> Marcar como leída</button>
+              <button v-else-if="!notification.item.isRead" class="text-button" @click="markRead(notification.item)">
                 <Check :size="14" /> Marcar como leída
               </button>
             </article>
+            <RouterLink class="notification-history-link" to="/notificaciones" @click="notificationsOpen = false">Ver todas las notificaciones</RouterLink>
           </section>
         </div>
         <button

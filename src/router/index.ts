@@ -137,6 +137,11 @@ export const router = createRouter({
           component: () => import("../views/SupportView.vue"),
         },
         {
+          path: "notificaciones",
+          name: "notifications",
+          component: () => import("../views/NotificationsView.vue"),
+        },
+        {
           path: "modules/:module",
           component: () => import("../views/ModuleView.vue"),
         },
