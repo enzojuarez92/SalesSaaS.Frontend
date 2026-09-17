@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Layers,
@@ -168,6 +168,18 @@ async function loadNotifications() {
   }
 }
 const unreadCount = computed(() => notifications.value.filter(item => !item.isRead).length + platformNotifications.value.length);
+let notificationRefreshTimer: ReturnType<typeof window.setInterval> | undefined;
+function refreshNotificationsWhenVisible() {
+  if (document.visibilityState === "visible") void refreshUnreadNotifications();
+}
+onMounted(() => {
+  notificationRefreshTimer = window.setInterval(refreshNotificationsWhenVisible, 15_000);
+  window.addEventListener("focus", refreshNotificationsWhenVisible);
+});
+onBeforeUnmount(() => {
+  if (notificationRefreshTimer) window.clearInterval(notificationRefreshTimer);
+  window.removeEventListener("focus", refreshNotificationsWhenVisible);
+});
 async function markRead(n: Notification) {
   try {
     await api.post(`/notifications/${n.id}/read`);
