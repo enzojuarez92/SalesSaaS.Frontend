@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowRight, Layers, Eye, EyeOff } from "lucide-vue-next";
+import { ArrowRight, Eye, EyeOff } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { apiError } from "../services/api";
 import { safeRedirect } from "../router";
@@ -44,16 +44,14 @@ async function submit() {
 </script>
 <template>
   <main class="auth-page">
-    <a class="brand auth-brand" href="/login"
-      ><Layers :size="28" /> SalesSaaS<span class="badge">ERP</span></a
-    >
+    <a class="brand auth-brand" href="/login"><img class="brand-logo" src="/klovercloud-logo.svg" alt="KloverCloud" /></a>
     <div class="auth-intro">
       <span class="eyebrow">MENOS TAREAS. MÁS POSIBILIDADES.</span>
       <h1>Tu negocio, en un solo lugar.</h1>
       <p>Conectá tu operación. Tomá mejores decisiones.</p>
     </div>
     <section class="auth-card">
-      <div class="icon-tile"><Layers /></div>
+      <div class="icon-tile"><img class="brand-mark" src="/klovercloud-mark.svg" alt="" /></div>
       <h2>
         {{
           route.query.switch ? "Cambiar de negocio" : "Qué bueno verte de nuevo"

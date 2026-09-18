@@ -2,7 +2,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
-  Layers,
   LayoutDashboard,
   ShoppingCart,
   Receipt,
@@ -130,7 +129,7 @@ watch(
   },
 );
 const tourStorageKey = computed(() =>
-  auth.user?.id ? `salessaas.onboarding.v1.${auth.user.id}` : "",
+  auth.user?.id ? `klovercloud.onboarding.v1.${auth.user.id}` : "",
 );
 function openOnboarding() { showOnboarding.value = true; }
 function finishOnboarding() {
@@ -143,7 +142,7 @@ watch(
     showOnboarding.value = false;
     if (!userId) return;
     await nextTick();
-    if (localStorage.getItem(`salessaas.onboarding.v1.${userId}`) !== "completed") {
+    if (localStorage.getItem(`klovercloud.onboarding.v1.${userId}`) !== "completed") {
       showOnboarding.value = true;
     }
   },
@@ -209,7 +208,7 @@ async function logout() {
 function toggleTheme() {
   darkMode.value = !darkMode.value;
   document.documentElement.classList.toggle("dark", darkMode.value);
-  localStorage.setItem("salessaas.theme", darkMode.value ? "dark" : "light");
+  localStorage.setItem("klovercloud.theme", darkMode.value ? "dark" : "light");
 }
 async function openProfile() {
   profileOpen.value = false;
@@ -254,8 +253,8 @@ async function saveProfile() {
     ></button>
     <aside class="sidebar" :class="{ 'mobile-open': mobile }">
       <RouterLink to="/dashboard" class="brand"
-        ><Layers :size="29" /><span class="sidebar-label"
-          >SalesSaaS<span class="brand-dot">.</span></span
+        ><img class="brand-mark" src="/klovercloud-mark.svg" alt="KloverCloud" /><span class="sidebar-label"
+          >KloverCloud</span
         ></RouterLink
       >
       <div class="workspace">
@@ -514,7 +513,7 @@ async function saveProfile() {
         </p>
       </main>
       <footer class="app-footer">
-        SalesSaaS <span>Hecho para acompañar tu crecimiento.</span>
+        KloverCloud <span>Hecho para acompañar tu crecimiento.</span>
       </footer>
     </div>
     <OnboardingTour v-if="showOnboarding" @complete="finishOnboarding" @skip="finishOnboarding" />

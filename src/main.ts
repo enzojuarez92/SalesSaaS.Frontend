@@ -6,7 +6,7 @@ import { useAuthStore } from "./stores/auth";
 import { useTenantStore } from "./stores/tenant";
 import { SESSION_KEY } from "./services/session";
 import "./style.css";
-const savedTheme = localStorage.getItem("salessaas.theme");
+const savedTheme = localStorage.getItem("klovercloud.theme");
 const useDarkTheme =
   savedTheme === "dark" ||
   (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);

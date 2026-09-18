@@ -98,7 +98,7 @@ watch(printFormat, value => { if (auth.tenantId) savePrintFormat(auth.tenantId, 
     <details class="afip-guide">
       <summary><CircleHelp :size="18" />¿Necesitás ayuda para configurar tu certificado?</summary>
       <div class="afip-guide-content">
-        <p>Completá estos pasos antes de cargar el certificado en SalesSaaS.</p>
+        <p>Completá estos pasos antes de cargar el certificado en KloverCloud.</p>
         <ol>
           <li><strong>Generá la clave privada y la solicitud.</strong> Creá los archivos <code>.key</code> y <code>.csr</code> para el Alias que vas a usar.</li>
           <li><strong>Da de alta el punto de venta en AFIP.</strong> Debe ser de tipo <em>Web Services</em>.</li>

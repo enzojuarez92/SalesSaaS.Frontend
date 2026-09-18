@@ -40,7 +40,7 @@ api.interceptors.request.use(async (config) => {
     if (session) {
       config.headers.Authorization = `Bearer ${session.accessToken}`;
       const warehouseId = sessionStorage.getItem(
-        `salessaas.warehouse.${session.tenantId}`,
+        `klovercloud.warehouse.${session.tenantId}`,
       );
       if (warehouseId) config.headers["X-Warehouse-Id"] = warehouseId;
     }

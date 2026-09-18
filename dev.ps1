@@ -5,7 +5,7 @@ $npmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
 if ($npmCommand) {
     & $npmCommand.Source run dev
 } else {
-    $frontendNpmCli = Join-Path $env:TEMP 'salessaas-npm/package/bin/npm-cli.js'
+    $frontendNpmCli = Join-Path $env:TEMP 'klovercloud-npm/package/bin/npm-cli.js'
     if (-not (Test-Path -LiteralPath $frontendNpmCli)) {
         throw 'Instalá Node.js con npm y ejecutá npm ci seguido de npm run dev.'
     }

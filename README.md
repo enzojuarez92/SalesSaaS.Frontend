@@ -1,4 +1,4 @@
-# SalesSaaS Frontend
+# KloverCloud Frontend
 
 Vue 3 + TypeScript + Vite, Tailwind CSS 4, Pinia, Vue Router 4, Axios y Lucide.
 
@@ -7,7 +7,7 @@ Vue 3 + TypeScript + Vite, Tailwind CSS 4, Pinia, Vue Router 4, Axios y Lucide.
 Requiere Node.js 22.12+ (ver engines de Vite) y npm.
 
 ```sh
-cd SalesSaaS.Frontend
+cd <directorio-del-frontend>
 npm ci
 npm run dev
 ```

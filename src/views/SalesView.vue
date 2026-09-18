@@ -175,7 +175,7 @@ async function loadCatalogs() {
   loading.value = false;
 }
 function loadPendingQuote() {
-  const stored = sessionStorage.getItem("salessaas.quote-to-load");
+  const stored = sessionStorage.getItem("klovercloud.quote-to-load");
   if (!stored || !products.value.length || !customers.value.length) return;
   try {
     const quote = JSON.parse(stored) as {
@@ -200,7 +200,7 @@ function loadPendingQuote() {
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "No pudimos cargar el presupuesto seleccionado.";
   } finally {
-    sessionStorage.removeItem("salessaas.quote-to-load");
+    sessionStorage.removeItem("klovercloud.quote-to-load");
   }
 }
 async function checkCash() {
@@ -436,7 +436,7 @@ async function createSale() {
     const receiptItems = cart.value.map(item => ({ product: item.name, quantity: item.quantity, unitPrice: item.price, subtotal: item.price * item.quantity }));
     const receiptCustomer = selectedCustomer.value!;
     const receiptDate = new Date().toISOString();
-    const storageKey = `salessaas.pending-sale.${auth.tenantId}.${tenant.activeWarehouseId}`;
+    const storageKey = `klovercloud.pending-sale.${auth.tenantId}.${tenant.activeWarehouseId}`;
     const serialized = JSON.stringify(payload);
     let pending: { payload: string; id: string } | null = null;
     try {

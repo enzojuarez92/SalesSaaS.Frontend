@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { Layers, ArrowRight } from "lucide-vue-next";
+import { ArrowRight } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { apiError } from "../services/api";
 import {
@@ -69,9 +69,7 @@ async function submit() {
 </script>
 <template>
   <main class="auth-page">
-    <RouterLink to="/login" class="brand auth-brand"
-      ><Layers :size="28" />SalesSaaS<span class="badge">ERP</span></RouterLink
-    >
+    <RouterLink to="/login" class="brand auth-brand"><img class="brand-logo" src="/klovercloud-logo.svg" alt="KloverCloud" /></RouterLink>
     <div class="auth-intro">
       <span class="eyebrow">EL PRÓXIMO PASO DE TU NEGOCIO</span>
       <h1>Empezá a gestionar mejor.</h1>

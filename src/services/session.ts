@@ -1,5 +1,5 @@
 import type { AuthResponse } from "../types/api";
-export const SESSION_KEY = "salessaas.session";
+export const SESSION_KEY = "klovercloud.session";
 export function validSession(value: unknown): value is AuthResponse {
   if (!value || typeof value !== "object") return false;
   const s = value as AuthResponse;

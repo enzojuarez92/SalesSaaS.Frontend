@@ -9,13 +9,13 @@ export const useTenantStore = defineStore("tenant", () => {
   const activeTenantId = computed(() => auth.tenantId);
   const warehouses = ref<Warehouse[]>([]);
   const activeWarehouseId = ref(
-    sessionStorage.getItem(`salessaas.warehouse.${auth.tenantId}`) || "",
+    sessionStorage.getItem(`klovercloud.warehouse.${auth.tenantId}`) || "",
   );
   watch(
     activeWarehouseId,
     (id) => {
       if (!auth.tenantId) return;
-      const key = `salessaas.warehouse.${auth.tenantId}`;
+      const key = `klovercloud.warehouse.${auth.tenantId}`;
       if (id) sessionStorage.setItem(key, id);
       else sessionStorage.removeItem(key);
     },
@@ -49,7 +49,7 @@ export const useTenantStore = defineStore("tenant", () => {
   }
   async function load() {
     const savedWarehouse = sessionStorage.getItem(
-      `salessaas.warehouse.${auth.tenantId}`,
+      `klovercloud.warehouse.${auth.tenantId}`,
     );
     const current = ++generation;
     if (!activeTenantId.value) {

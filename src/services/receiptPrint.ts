@@ -43,8 +43,8 @@ export type SavedBusiness = {
   phone?: string;
   logoUrl?: string;
 };
-const formatKey = (tenantId: string) => `salessaas.print-format.${tenantId}`;
-const businessKey = (tenantId: string) => `salessaas.print-business.${tenantId}`;
+const formatKey = (tenantId: string) => `klovercloud.print-format.${tenantId}`;
+const businessKey = (tenantId: string) => `klovercloud.print-business.${tenantId}`;
 
 export function getPrintFormat(tenantId: string): PrintFormat {
   const value = localStorage.getItem(formatKey(tenantId));

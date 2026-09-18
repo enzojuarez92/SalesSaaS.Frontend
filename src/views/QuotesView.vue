@@ -42,7 +42,7 @@ async function load() {
 }
 function loadInPos(quote: Quote) {
   sessionStorage.setItem(
-    "salessaas.quote-to-load",
+    "klovercloud.quote-to-load",
     JSON.stringify({ id: quote.id, customerId: quote.customerId, items: quote.items }),
   );
   void router.push("/ventas");

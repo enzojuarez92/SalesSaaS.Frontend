@@ -128,6 +128,9 @@ form {
 .brand svg {
   color: #ec4899;
 }
+.brand-logo { width: auto; height: 2rem; max-width: 12rem; }
+.brand-mark { width: 1.85rem; height: 1.85rem; flex: 0 0 auto; }
+.icon-tile .brand-mark { width: 1.65rem; height: 1.65rem; }
 .brand-dot {
   color: #ec4899;
 }

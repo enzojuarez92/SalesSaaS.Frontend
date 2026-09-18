@@ -13,7 +13,7 @@ const session = {
 async function mock(page: Page, signedIn = true) {
   if (signedIn)
     await page.addInitScript(
-      (s) => localStorage.setItem("salessaas.session", JSON.stringify(s)),
+      (s) => localStorage.setItem("klovercloud.session", JSON.stringify(s)),
       session,
     );
   await page.route("**/api/**", async (route) => {
