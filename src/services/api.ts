@@ -1,8 +1,15 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import type { AuthResponse } from "../types/api";
 import { readSession, writeSession } from "./session";
+
+// En producción la API se publica detrás del mismo dominio mediante Nginx.
+// Así evitamos compilar una URL local o externa por accidente.
+const apiBaseUrl = import.meta.env.PROD
+  ? "/api"
+  : import.meta.env.VITE_API_BASE_URL || "/api";
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
+  baseURL: apiBaseUrl,
   timeout: 20000,
 });
 type RetriableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
