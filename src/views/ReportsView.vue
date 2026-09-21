@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { money } from "../services/format";
 import { computed, ref, watch } from "vue";
-import { Download, FileText, Package, Printer, RefreshCw, Search, TrendingUp } from "lucide-vue-next";
+import { Download, FileText, Package, Printer, RefreshCw, Search, TrendingUp, Wallet } from "lucide-vue-next";
 import { api, apiError } from "../services/api";
 import TablePaginator from "../components/TablePaginator.vue";
 import { useAuthStore } from "../stores/auth";
@@ -57,7 +57,7 @@ const auditParams = () => ({
 const inventoryParams = () => ({ ...scopeParams(), search: inventorySearch.value.trim() || undefined, pageNumber: inventoryPage.value, pageSize: tablePageSize });
 const entityLabels: Record<string, string> = { Customer: "Clientes", Product: "Productos", Category: "Categorías", Supplier: "Proveedores", Order: "Ventas", OrderItem: "Detalle de venta", StockMovement: "Movimientos de stock", CashRegisterSession: "Sesiones de caja", CashMovement: "Movimientos de caja", PurchaseOrder: "Órdenes de compra", PurchaseOrderItem: "Detalle de compra", PurchaseInvoice: "Facturas de compra", Invoice: "Comprobantes", Warehouse: "Depósitos", Tenant: "Empresa", TenantFiscalProfile: "Configuración fiscal", User: "Usuarios" };
 const fieldLabels: Record<string, string> = { Name: "nombre", LegalName: "razón social", Description: "descripción", Price: "precio", Cost: "costo", Stock: "stock", MinimumStockAlert: "alerta mínima", Quantity: "cantidad", Status: "estado", PaymentMethod: "medio de pago", TotalAmount: "importe", IsActive: "activo", Email: "correo", Phone: "teléfono", Address: "dirección", TaxId: "CUIT", Code: "código", Reason: "motivo", Reference: "referencia" };
-const ignoredAuditFields = new Set(["Id", "TenantId", "UserId", "WarehouseId", "PasswordHash", "TokenVersion", "CreatedAt", "UpdatedAt"]);
+const ignoredAuditFields = new Set(["Id", "TenantId", "UserId", "WarehouseId", "CustomerId", "CashRegisterSessionId", "OrderId", "PaymentId", "PlanId", "CheckoutUrl", "PreferenceId", "PasswordHash", "TokenVersion", "CreatedAt", "UpdatedAt", "CreatedAtUtc", "UpdatedAtUtc", "OccurredAtUtc", "Amount", "DiscountAmount"]);
 const auditActionLabel = (action: string | number) => ({ "1": "Creación", "2": "Actualización", "3": "Eliminación", Create: "Creación", Update: "Actualización", Delete: "Eliminación" })[String(action)] || "Cambio";
 const auditModule = (row: AuditRow) => `${auditActionLabel(row.action)} · ${entityLabels[row.entityName] || row.entityName}`;
 function auditValue(value: unknown) {
@@ -70,7 +70,7 @@ function auditDetail(row: AuditRow) {
   try {
     const changes = JSON.parse(row.changesJson) as Record<string, { old?: unknown; new?: unknown; Old?: unknown; New?: unknown }>;
     const entries = Object.entries(changes).filter(([field]) => !ignoredAuditFields.has(field));
-    if (!entries.length) return row.action === 1 || row.action === "Create" ? "Registro creado." : row.action === 3 || row.action === "Delete" ? "Registro eliminado." : "Registro actualizado.";
+    if (!entries.length) return auditFallbackDetail(row);
     const description = entries.slice(0, 2).map(([field, change]) => {
       const label = fieldLabels[field] || field.replace(/([A-Z])/g, " $1").trim().toLowerCase();
       const before = change.old ?? change.Old;
@@ -83,6 +83,19 @@ function auditDetail(row: AuditRow) {
   } catch {
     return "Se registró un cambio en este módulo.";
   }
+}
+function auditFallbackDetail(row: AuditRow) {
+  const created = row.action === 1 || row.action === "Create";
+  const deleted = row.action === 3 || row.action === "Delete";
+  const action = deleted ? "eliminado" : created ? "registrado" : "actualizado";
+  const descriptions: Record<string, string> = {
+    Order: `Venta ${action}.`,
+    StockMovement: `Movimiento de stock ${action}.`,
+    CashMovement: `Movimiento de caja ${action}.`,
+    SaaSInvoice: created ? "Solicitud de cambio de plan iniciada." : `Suscripción ${action}.`,
+    Subscription: `Suscripción ${action}.`,
+  };
+  return descriptions[row.entityName] || `Registro ${action}.`;
 }
 const estimatedProfit = computed(() => (inventory.value?.retail || 0) - (inventory.value?.cost || 0));
 const estimatedMargin = computed(() => {
@@ -183,7 +196,7 @@ watch(auditSearch, () => { auditPage.value = 1; });
     <div v-if="tab !== 'inventory'" class="report-toolbar">
       <label>Desde<input v-model="from" type="date" /></label
       ><label>Hasta<input v-model="to" type="date" /></label
-      ><label v-if="tab === 'sales'">Medio de pago<select v-model.number="paymentMethod"><option value="">Todos</option><option v-for="option in paymentOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></label
+      ><label v-if="tab === 'sales'" class="payment-filter">Medio de pago<span class="payment-select"><Wallet :size="17" /><select v-model.number="paymentMethod"><option value="">Todos</option><option v-for="option in paymentOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></span></label
       ><label v-else>Buscar<input v-model.trim="auditSearch" placeholder="Usuario, acción o detalle" /></label
       ><button type="button" class="secondary" @click="load()">Aplicar</button
       ><button
@@ -274,6 +287,10 @@ watch(auditSearch, () => { auditPage.value = 1; });
 .report-toolbar { display:flex; flex-wrap:wrap; align-items:flex-end; gap:1rem; margin-bottom:1.75rem; padding-bottom:.25rem; }
 .report-toolbar label { flex:1 1 10.5rem; min-width:0; }
 .report-toolbar input, .report-toolbar select, .report-toolbar button { height:2.75rem; }
+.report-toolbar .payment-filter { flex:0 1 16.25rem; }
+.payment-select { position:relative; display:flex; align-items:center; }
+.payment-select svg { position:absolute; left:.8rem; z-index:1; color:#db2777; pointer-events:none; }
+.payment-select select { width:100%; padding-left:2.45rem; }
 .report-toolbar button { display:inline-flex; align-items:center; justify-content:center; gap:.45rem; align-self:flex-end; white-space:nowrap; }
 :global(.dark) .report-tabs button { background:#172033; border-color:#40516d; color:#c8d4e6; }
 :global(.dark) .report-tabs button:hover { background:#243047; border-color:#f472b6; color:#fbcfe8; }
