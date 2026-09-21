@@ -235,7 +235,19 @@ export interface AdminTenant {
   isActive: boolean;
   createdAtUtc: string;
 }
-export interface AdminPlan { id: string; name: string; monthlyPrice: number; currency: string; }
+export interface AdminPlan {
+  id: string;
+  name: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  currency: string;
+  maxUsers: number;
+  maxWarehouses: number;
+  maxInvoicesPerMonth: number;
+  supportsAfip: boolean;
+  isDefault: boolean;
+  isActive: boolean;
+}
 
 export interface AccountEntry {
   id: string;

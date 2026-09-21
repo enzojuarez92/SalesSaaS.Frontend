@@ -28,6 +28,7 @@ export const router = createRouter({
       meta: { requiresSuperAdmin: true },
       children: [
         { path: "", name: "admin-dashboard", component: () => import("../views/AdminDashboardView.vue") },
+        { path: "planes", name: "admin-plans", component: () => import("../views/AdminPlansView.vue") },
         { path: "empresas", name: "admin-tenants", component: () => import("../views/AdminTenantsView.vue") },
         { path: "anuncios", name: "admin-notifications", component: () => import("../views/AdminNotificationsView.vue") },
         { path: "consultas", name: "admin-support", component: () => import("../views/AdminSupportView.vue") },

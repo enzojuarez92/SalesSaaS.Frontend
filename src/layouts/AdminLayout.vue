@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { BellRing, Building2, LayoutDashboard, LogOut, MessageSquareText, ShieldCheck } from "lucide-vue-next";
+import { BellRing, Building2, LayoutDashboard, LogOut, MessageSquareText, ShieldCheck, Tags } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
 
 const route = useRoute(), router = useRouter(), auth = useAuthStore(), tenant = useTenantStore();
 const nav = [
   { label: "Resumen", path: "/admin", icon: LayoutDashboard },
+  { label: "Planes y precios", path: "/admin/planes", icon: Tags },
   { label: "Empresas", path: "/admin/empresas", icon: Building2 },
   { label: "Anuncios", path: "/admin/anuncios", icon: BellRing },
   { label: "Consultas", path: "/admin/consultas", icon: MessageSquareText },
