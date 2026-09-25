@@ -225,6 +225,11 @@ export interface AdminDashboard {
   trialingTenants: number;
   estimatedMonthlyRevenue: number;
 }
+export interface AdminDataCount { label: string; count: number; }
+export interface AdminTenantUsage { tenantName: string; products: number; customers: number; sales: number; invoices: number; salesVolume: number; }
+export interface AdminEndpointMetric { method: string; path: string; requests: number; failedRequests: number; averageDurationMs: number; maxDurationMs: number; lastOccurredAtUtc: string; }
+export interface AdminErrorLog { occurredAtUtc: string; statusCode: number; method: string; path: string; tenantName: string | null; userEmail: string | null; errorType: string; message: string; traceId: string; }
+export interface AdminObservability { databaseSizeBytes: number; dataCounts: AdminDataCount[]; tenantUsage: AdminTenantUsage[]; topEndpoints: AdminEndpointMetric[]; recentErrors: AdminErrorLog[]; }
 export interface AdminTenant {
   id: string;
   name: string;
