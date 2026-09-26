@@ -1,7 +1,7 @@
 import { computed, ref } from "vue";
 import { defineStore } from "pinia";
 import { api } from "../services/api";
-import { hasValidAccessToken, readSession, SESSION_KEY, writeSession } from "../services/session";
+import { clearImpersonatorSession, hasValidAccessToken, readImpersonatorSession, readSession, SESSION_KEY, writeImpersonatorSession, writeSession } from "../services/session";
 import type { AuthResponse, LoginRequest, RegisterRequest } from "../types/api";
 export const useAuthStore = defineStore("auth", () => {
   const session = ref<AuthResponse | null>(readSession());
@@ -18,9 +18,11 @@ export const useAuthStore = defineStore("auth", () => {
       : null,
   );
   const tenantId = computed(() => session.value?.tenantId || "");
+  const isImpersonating = computed(() => !!session.value?.supportImpersonationLogId);
   function clear() {
     session.value = null;
     localStorage.removeItem(SESSION_KEY);
+    clearImpersonatorSession();
   }
   function setSession(value: AuthResponse) {
     writeSession(value);
@@ -42,7 +44,35 @@ export const useAuthStore = defineStore("auth", () => {
     payload: LoginRequest | RegisterRequest,
   ) {
     const { data } = await api.post<AuthResponse>(`/auth/${path}`, payload);
+    clearImpersonatorSession();
     setSession(data);
+  }
+  function beginImpersonation(value: AuthResponse) {
+    if (!session.value || session.value.role !== "SuperAdmin" || !value.supportImpersonationLogId)
+      throw new Error("No se pudo iniciar la sesión de soporte.");
+    writeImpersonatorSession(session.value);
+    setSession(value);
+  }
+  async function endImpersonation() {
+    const backup = readImpersonatorSession();
+    try {
+      await api.post("/impersonation/stop");
+    } catch {
+      // We still restore the administrator session. The API also invalidates expired support sessions.
+    }
+    clearImpersonatorSession();
+    if (!backup) {
+      clear();
+      return false;
+    }
+    try {
+      const { data } = await api.post<AuthResponse>("/auth/refresh", { refreshToken: backup.refreshToken });
+      setSession(data);
+      return true;
+    } catch {
+      clear();
+      return false;
+    }
   }
   async function logout() {
     const refreshToken = session.value?.refreshToken;
@@ -59,11 +89,14 @@ export const useAuthStore = defineStore("auth", () => {
     session,
     user,
     tenantId,
+    isImpersonating,
     isAuthenticated,
     clear,
     setSession,
     refresh,
     authenticate,
+    beginImpersonation,
+    endImpersonation,
     logout,
   };
 });

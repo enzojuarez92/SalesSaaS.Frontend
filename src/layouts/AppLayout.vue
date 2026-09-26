@@ -25,10 +25,11 @@ import {
   Sun,
   LoaderCircle,
   CircleHelp,
+  ShieldAlert,
 } from "lucide-vue-next";
 import { useAuthStore } from "../stores/auth";
 import { useTenantStore } from "../stores/tenant";
-import { api, apiError } from "../services/api";
+import { api, apiError, notify } from "../services/api";
 import type { Notification, PlatformNotification } from "../types/api";
 import OnboardingTour from "../components/OnboardingTour.vue";
 const auth = useAuthStore(),
@@ -204,6 +205,16 @@ async function logout() {
   tenant.reset();
   await router.replace("/login");
   await pending;
+}
+async function stopSupport() {
+  const restored = await auth.endImpersonation();
+  tenant.reset();
+  if (restored) {
+    await router.replace("/admin/empresas");
+    notify("Volviste a tu sesión de SuperAdmin.");
+    return;
+  }
+  await router.replace("/login");
 }
 function toggleTheme() {
   darkMode.value = !darkMode.value;
@@ -421,6 +432,11 @@ async function saveProfile() {
           </div>
         </div>
       </header>
+      <aside v-if="auth.isImpersonating" class="support-session-banner" role="status">
+        <ShieldAlert :size="19" />
+        <span><strong>Sesión de soporte activa.</strong> Estás operando como {{ tenant.businessName }}.</span>
+        <button class="secondary compact" type="button" @click="stopSupport">Volver a SuperAdmin</button>
+      </aside>
       <div
         v-if="profileModalOpen"
         class="modal-backdrop"
@@ -519,3 +535,7 @@ async function saveProfile() {
     <OnboardingTour v-if="showOnboarding" @complete="finishOnboarding" @skip="finishOnboarding" />
   </div>
 </template>
+
+<style scoped>
+.support-session-banner{display:flex;align-items:center;gap:.65rem;padding:.65rem 1.5rem;background:#fff7ed;border-bottom:1px solid #fed7aa;color:#9a3412;font-size:.84rem}.support-session-banner strong{color:#7c2d12}.support-session-banner .compact{margin-left:auto}.dark .support-session-banner{background:#3b2715;border-color:#7c4a20;color:#fed7aa}.dark .support-session-banner strong{color:#ffedd5}@media(max-width:620px){.support-session-banner{align-items:flex-start;flex-wrap:wrap;padding:.65rem 1rem}.support-session-banner .compact{margin-left:1.65rem}}
+</style>

@@ -7,6 +7,8 @@ export interface AuthResponse {
   email: string;
   tenantId: string;
   role: string;
+  impersonatorUserId?: string | null;
+  supportImpersonationLogId?: string | null;
 }
 export interface LoginRequest {
   email: string;
